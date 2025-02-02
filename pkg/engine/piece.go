@@ -1,8 +1,5 @@
 package engine
 
-type PieceType int
-type PieceValue int
-
 // Enum for the different types of pieces.
 const (
 	InvalidType PieceType = iota
@@ -12,7 +9,20 @@ const (
 	RookType
 	QueenType
 	KingType
+) // Enum for the different values for each pieces.
+// The int values represent the value of the piece
+const (
+	InvalidValue PieceValue = 0
+	PawnValue    PieceValue = 1
+	KnightValue  PieceValue = 3
+	BishopValue  PieceValue = 3
+	RookValue    PieceValue = 5
+	QueenValue   PieceValue = 9
+	KingValue    PieceValue = 9999999
 )
+
+type PieceType int
+type PieceValue int
 
 func runeToLower(char rune) rune {
 	if char >= 'A' && char <= 'Z' {
@@ -60,33 +70,40 @@ func (p PieceType) String() string {
 	}
 }
 
-func (p PieceType) Value() int64 {
+func (p PieceType) Value() uint64 {
 	switch p {
 	case PawnType:
-		return int64(PawnValue)
+		return uint64(PawnValue)
 	case KnightType:
-		return int64(KnightValue)
+		return uint64(KnightValue)
 	case BishopType:
-		return int64(BishopValue)
+		return uint64(BishopValue)
 	case RookType:
-		return int64(RookValue)
+		return uint64(RookValue)
 	case QueenType:
-		return int64(QueenValue)
+		return uint64(QueenValue)
 	case KingType:
-		return int64(KingValue)
+		return uint64(KingValue)
 	default:
 		return 0
 	}
 }
 
-// Enum for the different values for each pieces.
-// The int values represent the value of the piece
-const (
-	InvalidValue PieceValue = 0
-	PawnValue    PieceValue = 1
-	KnightValue  PieceValue = 3
-	BishopValue  PieceValue = 3
-	RookValue    PieceValue = 5
-	QueenValue   PieceValue = 9
-	KingValue    PieceValue = 9999999
-)
+func GetMovesFunction(pieceType PieceType) MovesFunction {
+	switch pieceType {
+	case PawnType:
+		return PawnMoves
+	case KnightType:
+		return KnightMoves
+	case BishopType:
+		return BishopMoves
+	case RookType:
+		return RookMoves
+	case QueenType:
+		return QueenMoves
+	case KingType:
+		return KingMoves
+	default:
+		return nil
+	}
+}

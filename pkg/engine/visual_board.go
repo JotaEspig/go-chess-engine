@@ -16,10 +16,10 @@ func (vb VisualBoard) String() string {
 	var sb strings.Builder
 	sb.WriteRune('-')
 	sb.WriteString(strings.Repeat("----", 8) + "\n")
-	for i := 0; i < 8; i++ {
+	for i := 7; i >= 0; i-- { // Row are inverted to print the board correctly.
 		for j := 0; j < 8; j++ {
 			str := vb.Board[i][j].Type.String()
-			if !vb.Board[i][j].IsWhite {
+			if vb.Board[i][j].IsWhite {
 				str = strings.ToUpper(str)
 			}
 			sb.WriteString("| " + str + " ")

@@ -15,7 +15,7 @@ func main() {
 	fmt.Printf("Evaluation: %.1f\n", engine.Evaluate(b))
 
 	fmt.Println("Knight")
-	knightMoves := b.White.Knights.AllPossibleMoves(b, true)
+	knightMoves := b.White.Knights.AllPossibleMoves(b)
 	for _, move := range knightMoves {
 		fmt.Println("Is white move: ", b.Ctx.WhiteToMove)
 		fmt.Println("Is capture: ", move.IsCapture)
@@ -30,7 +30,7 @@ func main() {
 	}
 
 	fmt.Println("Rook")
-	rookMoves := b.White.Rooks.AllPossibleMoves(b, true)
+	rookMoves := b.White.Rooks.AllPossibleMoves(b)
 	for _, move := range rookMoves {
 		fmt.Println("Is white move: ", b.Ctx.WhiteToMove)
 		fmt.Println("Is capture: ", move.IsCapture)
@@ -45,7 +45,7 @@ func main() {
 	}
 
 	fmt.Println("Bishop")
-	bishopMoves := b.White.Bishops.AllPossibleMoves(b, true)
+	bishopMoves := b.White.Bishops.AllPossibleMoves(b)
 	for _, move := range bishopMoves {
 		fmt.Println("Is white move: ", b.Ctx.WhiteToMove)
 		fmt.Println("Is capture: ", move.IsCapture)
@@ -60,7 +60,7 @@ func main() {
 	}
 
 	fmt.Println("Queen")
-	queenMoves := b.White.Queens.AllPossibleMoves(b, true)
+	queenMoves := b.White.Queens.AllPossibleMoves(b)
 	for _, move := range queenMoves {
 		fmt.Println("Is white move: ", b.Ctx.WhiteToMove)
 		fmt.Println("Is capture: ", move.IsCapture)
@@ -75,7 +75,7 @@ func main() {
 	}
 
 	fmt.Println("King")
-	kingMoves := b.White.King.AllPossibleMoves(b, true)
+	kingMoves := b.White.King.AllPossibleMoves(b)
 	for _, move := range kingMoves {
 		fmt.Println("Is white move: ", b.Ctx.WhiteToMove)
 		fmt.Println("Is capture: ", move.IsCapture)

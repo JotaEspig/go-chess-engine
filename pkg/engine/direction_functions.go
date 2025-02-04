@@ -14,15 +14,15 @@ const (
 
 type directionFunc func(uint64, int) uint64
 
-func up(piecePos uint64, multiplier int) uint64 {
+func moveUp(piecePos uint64, multiplier int) uint64 {
 	return piecePos << (8 * multiplier)
 }
 
-func down(piecePos uint64, multiplier int) uint64 {
+func moveDown(piecePos uint64, multiplier int) uint64 {
 	return piecePos >> (8 * multiplier)
 }
 
-func left(piecePos uint64, multiplier int) uint64 {
+func moveLeft(piecePos uint64, multiplier int) uint64 {
 	// separate the byte from the rest of the bits to represent the row.
 	// So when we move beyond the byte bounds, the value will be 0.
 	// If we don't do this, when we lsh the entire piecePos,
@@ -43,7 +43,7 @@ func left(piecePos uint64, multiplier int) uint64 {
 	return uint64(_byte) << (8 * count)
 }
 
-func right(piecePos uint64, multiplier int) uint64 {
+func moveRight(piecePos uint64, multiplier int) uint64 {
 	// separate the byte from the rest of the bits to represent the row.
 	// So when we move beyond the byte bounds, the value will be 0.
 	// If we don't do this, when we lsh the entire piecePos,
@@ -64,72 +64,72 @@ func right(piecePos uint64, multiplier int) uint64 {
 	return uint64(_byte) << (8 * count)
 }
 
-func upLeft(piecePos uint64, multiplier int) uint64 {
-	return up(left(piecePos, multiplier), multiplier)
+func moveUpLeft(piecePos uint64, multiplier int) uint64 {
+	return moveUp(moveLeft(piecePos, multiplier), multiplier)
 }
 
-func upRight(piecePos uint64, multiplier int) uint64 {
-	return up(right(piecePos, multiplier), multiplier)
+func moveUpRight(piecePos uint64, multiplier int) uint64 {
+	return moveUp(moveRight(piecePos, multiplier), multiplier)
 }
 
-func downLeft(piecePos uint64, multiplier int) uint64 {
-	return down(left(piecePos, multiplier), multiplier)
+func moveDownLeft(piecePos uint64, multiplier int) uint64 {
+	return moveDown(moveLeft(piecePos, multiplier), multiplier)
 }
 
-func downRight(piecePos uint64, multiplier int) uint64 {
-	return down(right(piecePos, multiplier), multiplier)
+func moveDownRight(piecePos uint64, multiplier int) uint64 {
+	return moveDown(moveRight(piecePos, multiplier), multiplier)
 }
 
-func knightL1(piecePos uint64) uint64 {
-	return up(left(piecePos, 1), 2)
+func moveKnightL1(piecePos uint64) uint64 {
+	return moveUp(moveLeft(piecePos, 1), 2)
 }
 
-func knightL2(piecePos uint64) uint64 {
-	return up(right(piecePos, 1), 2)
+func moveKnightL2(piecePos uint64) uint64 {
+	return moveUp(moveRight(piecePos, 1), 2)
 }
 
-func knightL3(piecePos uint64) uint64 {
-	return down(left(piecePos, 1), 2)
+func moveKnightL3(piecePos uint64) uint64 {
+	return moveDown(moveLeft(piecePos, 1), 2)
 }
 
-func knightL4(piecePos uint64) uint64 {
-	return down(right(piecePos, 1), 2)
+func moveKnightL4(piecePos uint64) uint64 {
+	return moveDown(moveRight(piecePos, 1), 2)
 }
 
-func knightL5(piecePos uint64) uint64 {
-	return left(up(piecePos, 1), 2)
+func moveKnightL5(piecePos uint64) uint64 {
+	return moveLeft(moveUp(piecePos, 1), 2)
 }
 
-func knightL6(piecePos uint64) uint64 {
-	return right(up(piecePos, 1), 2)
+func moveKnightL6(piecePos uint64) uint64 {
+	return moveRight(moveUp(piecePos, 1), 2)
 }
 
-func knightL7(piecePos uint64) uint64 {
-	return left(down(piecePos, 1), 2)
+func moveKnightL7(piecePos uint64) uint64 {
+	return moveLeft(moveDown(piecePos, 1), 2)
 }
 
-func knightL8(piecePos uint64) uint64 {
-	return right(down(piecePos, 1), 2)
+func moveKnightL8(piecePos uint64) uint64 {
+	return moveRight(moveDown(piecePos, 1), 2)
 }
 
 func GetDirectionFunc(direction int) directionFunc {
 	switch direction {
 	case directionUp:
-		return up
+		return moveUp
 	case directionDown:
-		return down
+		return moveDown
 	case directionLeft:
-		return left
+		return moveLeft
 	case directionRight:
-		return right
+		return moveRight
 	case directionUpLeft:
-		return upLeft
+		return moveUpLeft
 	case directionUpRight:
-		return upRight
+		return moveUpRight
 	case directionDownLeft:
-		return downLeft
+		return moveDownLeft
 	case directionDownRight:
-		return downRight
+		return moveDownRight
 	default:
 		return nil
 	}

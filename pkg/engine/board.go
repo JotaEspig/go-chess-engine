@@ -94,6 +94,68 @@ func FenToContext(splitted []string) Context {
 	return ctx
 }
 
+func (b Board) IsValidPosition() bool {
+	// Check if there are no pieces in the same position
+	whitePieces := b.White.AllBoardMask()
+	blackPieces := b.Black.AllBoardMask()
+	if whitePieces&blackPieces != 0 {
+		return false
+	}
+
+	// originalWhiteToMove := b.Ctx.WhiteToMove
+	if b.Ctx.WhiteToMove {
+		// Check if the black king is in check while it's white's turn. Meaning that an illegal move was made.
+		b.Ctx.WhiteToMove = false
+		if b.IsKingInCheck() {
+			return false
+		}
+	} else {
+		// Check if the white king is in check while it's black's turn. Meaning that an illegal move was made.
+		b.Ctx.WhiteToMove = true
+		if b.IsKingInCheck() {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (b Board) AllPossibleMoves() []Move {
+	moves := make([]Move, 0)
+	// "Normal" moves (including En passant and promotion)
+	if b.Ctx.WhiteToMove {
+		moves = append(moves, b.White.AllPossibleMoves(b)...)
+	} else {
+		moves = append(moves, b.Black.AllPossibleMoves(b)...)
+	}
+
+	// Castling
+
+	return moves
+}
+
+func (b Board) AllMovesToDefendCheck() []Move {
+	if !b.IsKingInCheck() {
+		log.Fatal("King is not in check")
+	}
+
+	moves := make([]Move, 0)
+	if b.Ctx.WhiteToMove {
+		moves = append(moves, b.White.AllPossibleMoves(b)...)
+	} else {
+		moves = append(moves, b.Black.AllPossibleMoves(b)...)
+	}
+
+	// Filter out moves that don't defend the king
+	moves = Filter(moves, func(m Move) bool {
+		newBoard := b
+		newBoard.MakeMove(m)
+		return newBoard.IsValidPosition()
+	})
+
+	return moves
+}
+
 func (b *Board) MakeMove(m Move) {
 	var pb *PartialBoard
 	if b.Ctx.WhiteToMove {
@@ -102,7 +164,24 @@ func (b *Board) MakeMove(m Move) {
 		pb = &b.Black
 	}
 
-	pb.MakeMove(m)
+	if m.IsPromotion {
+		pb.MakePromotion(m)
+	} else {
+		pb.MakeMove(m)
+	}
+
+	// Check for next move En passant
+	// Default value is 0
+	var enPassantPos uint64 = 0
+	// If is 2 square pawn move, set the en passant position for the one row behind the pawn
+	if m.Is2SquarePawnMove() {
+		isWhite := m.NewPiecePos > m.OldPiecePos // Assumes it's a pawn move
+		if isWhite {
+			enPassantPos = moveUp(m.OldPiecePos, 1)
+		} else {
+			enPassantPos = moveDown(m.OldPiecePos, 1)
+		}
+	}
 	if m.IsCapture {
 		// Inverted color to erase the piece from the board
 		if b.Ctx.WhiteToMove {
@@ -129,68 +208,45 @@ func (b *Board) MakeMove(m Move) {
 
 	b.Ctx.WhiteToMove = !b.Ctx.WhiteToMove
 	b.Ctx.MoveNumber++
+	b.Ctx.EnPassant = enPassantPos
+
+	if !b.IsValidPosition() {
+		log.Fatalf("Invalid position after move: %v", m)
+	}
 }
 
-func (b Board) IsWhiteMated() bool {
-	isKingInCheckOriginalPos := b.IsKingInCheck(b.White.King.Board, true)
+func (b Board) IsMated() bool {
+	isKingInCheckOriginalPos := b.IsKingInCheck()
 	if !isKingInCheckOriginalPos {
 		return false
 	}
 
-	kingMoves := b.White.King.AllPossibleMoves(b, true)
-	if len(kingMoves) == 0 {
-		return true
-	}
-
-	for _, move := range kingMoves {
-		newBoard := b
-		newBoard.MakeMove(move)
-		if !newBoard.IsKingInCheck(newBoard.White.King.Board, true) {
-			return false
-		}
-	}
-	return true
-}
-
-func (b Board) IsBlackMated() bool {
-	isKingInCheckOriginalPos := b.IsKingInCheck(b.Black.King.Board, false)
-	if !isKingInCheckOriginalPos {
-		return false
-	}
-
-	kingMoves := b.Black.King.AllPossibleMoves(b, false)
-	if len(kingMoves) == 0 {
-		return true
-	}
-
-	for _, move := range kingMoves {
-		newBoard := b
-		newBoard.MakeMove(move)
-		if !newBoard.IsKingInCheck(newBoard.Black.King.Board, false) {
-			return false
-		}
-	}
-	return true
+	possibleDefensiveMoves := b.AllMovesToDefendCheck()
+	return len(possibleDefensiveMoves) == 0
 }
 
 // IsKingInCheck returns true if the king is in check.
-// kingPos is the position of the king.
-// isWhite if the king is white.
-func (b Board) IsKingInCheck(kingPos uint64, isWhite bool) bool {
-	var pb *PartialBoard
-	// Inverted
+func (b Board) IsKingInCheck() bool {
+	var kingPos uint64
+	var enemyPb *PartialBoard
+
+	isWhite := b.Ctx.WhiteToMove
 	if isWhite {
-		pb = &b.Black
+		kingPos = b.White.King.Board
+		enemyPb = &b.Black
 	} else {
-		pb = &b.White
+		kingPos = b.Black.King.Board
+		enemyPb = &b.White
 	}
 
+	// Invert the color to get the enemy moves and see if it's possible to "capture" the king
+	b.Ctx.WhiteToMove = !b.Ctx.WhiteToMove
 	possibleCheckMoves := make([]Move, 0)
-	// allWhitePossibleMovesExcludingKing = append(allWhitePossibleMovesExcludingKing, b.White.Pawns.AllPossibleMoves(b, false)...)
-	possibleCheckMoves = append(possibleCheckMoves, pb.Knights.AllPossibleMoves(b, !isWhite)...)
-	possibleCheckMoves = append(possibleCheckMoves, pb.Bishops.AllPossibleMoves(b, !isWhite)...)
-	possibleCheckMoves = append(possibleCheckMoves, pb.Rooks.AllPossibleMoves(b, !isWhite)...)
-	possibleCheckMoves = append(possibleCheckMoves, pb.Queens.AllPossibleMoves(b, !isWhite)...)
+	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Pawns.AllPossibleMoves(b)...)
+	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Knights.AllPossibleMoves(b)...)
+	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Bishops.AllPossibleMoves(b)...)
+	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Rooks.AllPossibleMoves(b)...)
+	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Queens.AllPossibleMoves(b)...)
 
 	for _, move := range possibleCheckMoves {
 		if move.NewPiecePos == kingPos {

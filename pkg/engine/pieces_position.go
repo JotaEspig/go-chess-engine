@@ -24,7 +24,7 @@ func (pp PiecesPosition) Value() uint64 {
 	return count * multiplier
 }
 
-func (pp PiecesPosition) AllPossibleMoves(board Board, isWhite bool) []Move {
+func (pp PiecesPosition) AllPossibleMoves(b Board) []Move {
 	var moves []Move
 	for i := 0; i < 64; i++ {
 		// if != 0, there is a piece at this position.
@@ -34,7 +34,7 @@ func (pp PiecesPosition) AllPossibleMoves(board Board, isWhite bool) []Move {
 				log.Fatal("Invalid piece type")
 			}
 
-			newMoves := movesFn(board, 1<<uint(i), isWhite)
+			newMoves := movesFn(b, 1<<uint(i))
 			moves = append(moves, newMoves...)
 		}
 	}

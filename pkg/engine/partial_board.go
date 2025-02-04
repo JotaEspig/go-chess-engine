@@ -23,6 +23,17 @@ func NewPartialBoard() PartialBoard {
 	}
 }
 
+func (pb PartialBoard) AllPossibleMoves(board Board) []Move {
+	moves := make([]Move, 0)
+	moves = append(moves, pb.Pawns.AllPossibleMoves(board)...)
+	moves = append(moves, pb.Knights.AllPossibleMoves(board)...)
+	moves = append(moves, pb.Bishops.AllPossibleMoves(board)...)
+	moves = append(moves, pb.Rooks.AllPossibleMoves(board)...)
+	moves = append(moves, pb.Queens.AllPossibleMoves(board)...)
+	moves = append(moves, pb.King.AllPossibleMoves(board)...)
+	return moves
+}
+
 func (pb *PartialBoard) MakeMove(m Move) {
 	var pp *PiecesPosition
 	switch m.PieceType {
@@ -44,6 +55,31 @@ func (pb *PartialBoard) MakeMove(m Move) {
 
 	pp.Board &= ^m.OldPiecePos
 	pp.Board |= m.NewPiecePos
+}
+
+func (pb *PartialBoard) MakePromotion(m Move) {
+	var pp, pp2 *PiecesPosition
+	switch m.PieceType {
+	case PawnType:
+		pp = &pb.Pawns
+	default:
+		log.Fatalf("Invalid piece type for promotion: %v", m.PieceType)
+	}
+	switch m.NewPieceType {
+	case QueenType:
+		pp2 = &pb.Queens
+	case RookType:
+		pp2 = &pb.Rooks
+	case BishopType:
+		pp2 = &pb.Bishops
+	case KnightType:
+		pp2 = &pb.Knights
+	default:
+		log.Fatalf("Invalid piece type for promotion target: %v", m.NewPieceType)
+	}
+
+	pp.Board &= ^m.OldPiecePos
+	pp2.Board |= m.NewPiecePos
 }
 
 func (pb PartialBoard) AllBoardMask() uint64 {

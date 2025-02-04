@@ -120,6 +120,17 @@ func (b Board) IsValidPosition() bool {
 	return true
 }
 
+func (b Board) AllLegalMoves() []Move {
+	moves := b.AllPossibleMoves()
+	// Filter out moves that are not legal
+	moves = Filter(moves, func(m Move) bool {
+		newBoard := b
+		return newBoard.MakeMove(m)
+	})
+
+	return moves
+}
+
 func (b Board) AllPossibleMoves() []Move {
 	moves := make([]Move, 0)
 	// "Normal" moves (including En passant and promotion)
@@ -134,34 +145,45 @@ func (b Board) AllPossibleMoves() []Move {
 	return moves
 }
 
-func (b Board) AllMovesToDefendCheck() []Move {
+func (b Board) allMovesToDefendCheck() []Move {
 	if !b.IsKingInCheck() {
 		log.Fatal("King is not in check")
 	}
 
-	moves := make([]Move, 0)
-	if b.Ctx.WhiteToMove {
-		moves = append(moves, b.White.AllPossibleMoves(b)...)
-	} else {
-		moves = append(moves, b.Black.AllPossibleMoves(b)...)
-	}
-
-	// Filter out moves that don't defend the king
-	moves = Filter(moves, func(m Move) bool {
-		newBoard := b
-		newBoard.MakeMove(m)
-		return newBoard.IsValidPosition()
-	})
-
-	return moves
+	return b.AllLegalMoves()
 }
 
-func (b *Board) MakeMove(m Move) {
+// MakeMove makes a move on the board.
+// Returns true if it's a valid move, false otherwise.
+func (b *Board) MakeMove(m Move) bool {
 	var pb *PartialBoard
 	if b.Ctx.WhiteToMove {
 		pb = &b.White
 	} else {
 		pb = &b.Black
+	}
+
+	var mask uint64
+	switch m.PieceType {
+	case PawnType:
+		mask = pb.Pawns.Board
+	case KnightType:
+		mask = pb.Knights.Board
+	case BishopType:
+		mask = pb.Bishops.Board
+	case RookType:
+		mask = pb.Rooks.Board
+	case QueenType:
+		mask = pb.Queens.Board
+	case KingType:
+		mask = pb.King.Board
+	default:
+		log.Fatalf("Invalid piece type: %v", m.PieceType)
+	}
+
+	// Check if the piece is at the position
+	if mask&m.OldPiecePos == 0 {
+		return false
 	}
 
 	if m.IsPromotion {
@@ -210,9 +232,7 @@ func (b *Board) MakeMove(m Move) {
 	b.Ctx.MoveNumber++
 	b.Ctx.EnPassant = enPassantPos
 
-	if !b.IsValidPosition() {
-		log.Fatalf("Invalid position after move: %v", m)
-	}
+	return b.IsValidPosition()
 }
 
 func (b Board) IsMated() bool {
@@ -221,7 +241,7 @@ func (b Board) IsMated() bool {
 		return false
 	}
 
-	possibleDefensiveMoves := b.AllMovesToDefendCheck()
+	possibleDefensiveMoves := b.allMovesToDefendCheck()
 	return len(possibleDefensiveMoves) == 0
 }
 

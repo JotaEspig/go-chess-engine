@@ -75,7 +75,87 @@ func knightMove(board Board, pieceBoard uint64, fn func(uint64) uint64) []Move {
 // Includes En Passant and promotion
 func PawnMoves(board Board, pieceBoard uint64) []Move {
 	moves := make([]Move, 0)
-	// Implement pawn moves logic here
+
+	// Color configs
+	var dirFn func(uint64, int) uint64
+	var isInPromotionRow func(uint64) bool
+	var isInInitialRow func(uint64) bool
+	if board.Ctx.WhiteToMove {
+		dirFn = moveUp
+		isInPromotionRow = func(pos uint64) bool {
+			return pos>>56 != 0
+		}
+		isInInitialRow = func(pos uint64) bool {
+			return pos<<48 != 0
+		}
+	} else {
+		dirFn = moveDown
+		isInPromotionRow = func(pos uint64) bool {
+			return pos<<56 != 0
+		}
+		isInInitialRow = func(pos uint64) bool {
+			return pos>>48 != 0
+		}
+	}
+
+	// Move forward
+	newPieceBoard := dirFn(pieceBoard, 1)
+	if newPieceBoard == 0 {
+		log.Fatal("Pawn is already at the last row, How?")
+	}
+
+	// check for collision
+	whiteMask := board.White.AllBoardMask()
+	blackMask := board.Black.AllBoardMask()
+	allColorBoard := whiteMask | blackMask
+	// If there's no collision
+	if newPieceBoard&allColorBoard == 0 {
+		isPromotion := isInPromotionRow(newPieceBoard)
+		move := Move{OldPiecePos: pieceBoard, NewPiecePos: newPieceBoard, IsPromotion: isPromotion, PieceType: PawnType}
+		if !isPromotion {
+			moves = append(moves, move)
+		} else {
+			for _, pieceType := range []PieceType{QueenType, RookType, BishopType, KnightType} {
+				move.NewPieceType = pieceType
+				moves = append(moves, move)
+			}
+		}
+	}
+
+	// Double pawn move
+	// Check if pawn is at 2 row
+	if isInInitialRow(pieceBoard) {
+		// Check if row in front is not blocked
+		if newPieceBoard != 0 {
+			newPieceBoard = dirFn(newPieceBoard, 1)
+			if newPieceBoard&allColorBoard == 0 {
+				move := Move{OldPiecePos: pieceBoard, NewPiecePos: newPieceBoard, PieceType: PawnType}
+				moves = append(moves, move)
+			}
+		}
+	}
+
+	// Check capture moves
+	captureLeft := dirFn(moveLeft(pieceBoard, 1), 1)
+	captureRight := dirFn(moveRight(pieceBoard, 1), 1)
+	capturePoss := []uint64{captureLeft, captureRight}
+	for _, capturePos := range capturePoss {
+		if capturePos&blackMask == 0 && capturePos&board.Ctx.EnPassant == 0 {
+			continue
+		}
+
+		isPromotion := isInPromotionRow(capturePos)
+		move := Move{OldPiecePos: pieceBoard, NewPiecePos: capturePos, IsCapture: true, IsPromotion: isPromotion, PieceType: PawnType}
+		if !isPromotion {
+			moves = append(moves, move)
+		} else {
+			for _, pieceType := range []PieceType{QueenType, RookType, BishopType, KnightType} {
+				move.NewPieceType = pieceType
+				moves = append(moves, move)
+			}
+		}
+	}
+
 	return moves
 }
 

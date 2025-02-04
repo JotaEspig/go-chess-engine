@@ -14,5 +14,5 @@ func (m Move) Is2SquarePawnMove() bool {
 	if m.PieceType != PawnType {
 		return false
 	}
-	return (m.OldPiecePos>>8 == m.NewPiecePos) || (m.OldPiecePos<<8 == m.NewPiecePos)
+	return (m.OldPiecePos>>16 == m.NewPiecePos) || (m.OldPiecePos<<16 == m.NewPiecePos)
 }

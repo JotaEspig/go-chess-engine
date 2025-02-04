@@ -14,6 +14,21 @@ func main() {
 	fmt.Println(vb.String())
 	fmt.Printf("Evaluation: %.1f\n", engine.Evaluate(b))
 
+	fmt.Println("Pawn")
+	pawnMoves := b.White.Pawns.AllPossibleMoves(b)
+	for _, move := range pawnMoves {
+		fmt.Println("Is white move: ", b.Ctx.WhiteToMove)
+		fmt.Println("Is capture: ", move.IsCapture)
+		b.MakeMove(move)
+		vb := b.ToVisualBoard()
+		fmt.Println(vb.String())
+		// ask for one key input
+		fmt.Scanln()
+
+		// reset board
+		b = originalBoard
+	}
+
 	fmt.Println("Knight")
 	knightMoves := b.White.Knights.AllPossibleMoves(b)
 	for _, move := range knightMoves {

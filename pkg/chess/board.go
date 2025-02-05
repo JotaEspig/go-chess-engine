@@ -273,9 +273,13 @@ func (b *Board) MakeMove(m Move) bool {
 		return false
 	}
 
-	// Castling verifications
-	if m.IsCastling {
+	if m.IsPromotion {
+		pb.MakePromotion(m)
+	} else if m.IsCastling { // Castling verifications
+		// Cannot castle if the king is in check
 		if b.IsKingInCheck() {
+			// Restore to the previous board
+			*b = *prevBoard
 			return false
 		}
 
@@ -292,6 +296,8 @@ func (b *Board) MakeMove(m Move) bool {
 
 		// Means that king moves in a square attacked by enemy piece
 		if !copyBoard.MakeMove(copyMove) {
+			// Restore to the previous board
+			*b = *prevBoard
 			return false
 		}
 
@@ -299,44 +305,59 @@ func (b *Board) MakeMove(m Move) bool {
 		if b.Ctx.WhiteToMove {
 			if isKingSide {
 				if !b.Ctx.WhiteCastlingKingSide {
+					// Restore to the previous board
+					*b = *prevBoard
 					return false
 				}
 			} else {
 				if !b.Ctx.WhiteCastlingQueenSide {
+					// Restore to the previous board
+					*b = *prevBoard
 					return false
 				}
 			}
 		} else {
 			if isKingSide {
 				if !b.Ctx.BlackCastlingKingSide {
+					// Restore to the previous board
+					*b = *prevBoard
 					return false
 				}
 			} else {
 				if !b.Ctx.BlackCastlingQueenSide {
+					// Restore to the previous board
+					*b = *prevBoard
 					return false
 				}
 			}
 		}
-	}
 
-	if m.IsPromotion {
-		pb.MakePromotion(m)
+		// Move rook
+		if isKingSide {
+			if b.Ctx.WhiteToMove {
+				b.White.Rooks.Board &= ^uint64(1) // H1
+				b.White.Rooks.Board |= uint64(4)  // F1
+			} else {
+				b.Black.Rooks.Board &= ^uint64(72_057_594_037_927_936) // H8
+				b.Black.Rooks.Board |= uint64(288_230_376_151_711_744) // F8
+			}
+		} else {
+			if b.Ctx.WhiteToMove {
+				b.White.Rooks.Board &= ^uint64(128) // A1
+				b.White.Rooks.Board |= uint64(16)   // D1
+			} else {
+				b.Black.Rooks.Board &= ^uint64(9_223_372_036_854_775_808) // A8
+				b.Black.Rooks.Board |= uint64(1_152_921_504_606_846_976)  // D8
+			}
+		}
+		// Move king
+		pb.MakeMove(m)
 	} else {
+		// Then, normal move
 		pb.MakeMove(m)
 	}
 
-	// Check for next move En passant
-	// Default value is 0
-	var enPassantPos uint64 = 0
-	// If is 2 square pawn move, set the en passant position for the one row behind the pawn
-	if m.Is2SquarePawnMove() {
-		isWhite := m.NewPiecePos > m.OldPiecePos // Assumes it's a pawn move
-		if isWhite {
-			enPassantPos = moveUp(m.OldPiecePos, 1)
-		} else {
-			enPassantPos = moveDown(m.OldPiecePos, 1)
-		}
-	}
+	// Removes enemy piece if it's a capture
 	if m.IsCapture {
 		// Inverted color to erase the piece from the board
 		if b.Ctx.WhiteToMove {
@@ -361,6 +382,19 @@ func (b *Board) MakeMove(m Move) bool {
 		pb.King.Board &= ^m.NewPiecePos
 	}
 
+	// Check for next move En passant
+	// Default value is 0
+	var enPassantPos uint64 = 0
+	// If is 2 square pawn move, set the en passant position for the one row behind the pawn
+	if m.Is2SquarePawnMove() {
+		isWhite := m.NewPiecePos > m.OldPiecePos // Assumes it's a pawn move
+		if isWhite {
+			enPassantPos = moveUp(m.OldPiecePos, 1)
+		} else {
+			enPassantPos = moveDown(m.OldPiecePos, 1)
+		}
+	}
+
 	// means black completed its turn
 	if !b.Ctx.WhiteToMove {
 		b.Ctx.MoveNumber++
@@ -375,6 +409,8 @@ func (b *Board) MakeMove(m Move) bool {
 	b.Ctx.EnPassant = enPassantPos
 
 	if !b.IsValidPosition() {
+		// Restore to the previous board
+		*b = *prevBoard
 		return false
 	}
 	b.PrevBoard = prevBoard
@@ -655,7 +691,7 @@ func (b Board) ParseMove(notation string) (Move, error) {
 
 func (b Board) MoveToNotation(move Move) string {
 	if move.IsCastling {
-		if move.NewPiecePos < move.OldPiecePos {
+		if move.NewPiecePos > move.OldPiecePos {
 			return "O-O-O"
 		}
 		return "O-O"
@@ -736,14 +772,17 @@ func (b Board) MoveToNotation(move Move) string {
 	}
 	dest := Int64toPositions(move.NewPiecePos)[0]
 	destCol, destRow := dest[0], dest[1]
-	notation += string(rune('a' + destCol))
+	// if it's a pawn move and not a capture, then the column was already added
+	if move.PieceType != PawnType && !move.IsCapture {
+		notation += string(rune('a' + destCol))
+	}
 	notation += string(rune('1' + destRow))
 
-	return ""
+	return notation
 }
 
 func (b Board) getMoveListInNotation() string {
-	if b.MoveDone != (Move{}) {
+	if b.MoveDone == (Move{}) {
 		return b.PrevBoard.getMoveListInNotation()
 	}
 	moveNotation := b.MoveToNotation(b.MoveDone)

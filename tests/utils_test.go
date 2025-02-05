@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"gce/pkg/engine"
+	"gce/pkg/chess"
 	"testing"
 )
 
@@ -9,8 +9,8 @@ func TestInt64ToRowCol(t *testing.T) {
 	// Single positions
 	for row := 0; row <= 7; row++ {
 		for col := 0; col <= 7; col++ {
-			i := engine.PositionToUInt64(col, row)
-			positions := engine.Int64toPositions(i)
+			i := chess.PositionToUInt64(col, row)
+			positions := chess.Int64toPositions(i)
 			if len(positions) != 1 {
 				t.Errorf("len(Int64toPositions(%v)) = %v", i, positions)
 			}
@@ -23,8 +23,8 @@ func TestInt64ToRowCol(t *testing.T) {
 	}
 
 	// Multiple positions
-	i := engine.PositionToUInt64(0, 0) | engine.PositionToUInt64(1, 1) | engine.PositionToUInt64(2, 2)
-	positions := engine.Int64toPositions(i)
+	i := chess.PositionToUInt64(0, 0) | chess.PositionToUInt64(1, 1) | chess.PositionToUInt64(2, 2)
+	positions := chess.Int64toPositions(i)
 	if len(positions) != 3 {
 		t.Errorf("len(Int64toPositions(%v)) = %v", i, positions)
 	}

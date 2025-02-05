@@ -1,4 +1,4 @@
-package engine
+package chess
 
 type Context struct {
 	WhiteToMove            bool

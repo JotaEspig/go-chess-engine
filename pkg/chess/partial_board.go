@@ -1,4 +1,4 @@
-package engine
+package chess
 
 import "github.com/charmbracelet/log"
 

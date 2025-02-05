@@ -1,4 +1,4 @@
-package engine
+package chess
 
 // Enum for the different types of pieces.
 const (

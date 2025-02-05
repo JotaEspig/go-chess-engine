@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"gce/pkg/engine"
+	"gce/pkg/chess"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,7 +9,7 @@ import (
 
 func TestNotation(t *testing.T) {
 
-	b := engine.NewDefaultBoard()
+	b := chess.NewDefaultBoard()
 
 	moveNotation := "d4"
 	move, err := b.ParseMove(moveNotation)
@@ -26,19 +26,19 @@ func TestNotation(t *testing.T) {
 	moveNotation = "Nd2"
 	move, err = b.ParseMove(moveNotation)
 	assert.Nil(t, err)
-	assert.Equal(t, move.NewPiecePos, engine.PositionToUInt64(3, 1))
+	assert.Equal(t, move.NewPiecePos, chess.PositionToUInt64(3, 1))
 	assert.True(t, b.MakeMove(move))
 
 	moveNotation = "Nf6"
 	move, err = b.ParseMove(moveNotation)
 	assert.Nil(t, err)
-	assert.Equal(t, move.NewPiecePos, engine.PositionToUInt64(5, 5))
+	assert.Equal(t, move.NewPiecePos, chess.PositionToUInt64(5, 5))
 	assert.True(t, b.MakeMove(move))
 
 	moveNotation = "Ngf3"
 	move, err = b.ParseMove(moveNotation)
 	assert.Nil(t, err)
-	assert.Equal(t, move.NewPiecePos, engine.PositionToUInt64(5, 2))
+	assert.Equal(t, move.NewPiecePos, chess.PositionToUInt64(5, 2))
 	assert.True(t, b.MakeMove(move))
 
 	moveNotation = "d6"

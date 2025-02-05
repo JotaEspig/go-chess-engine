@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"gce/pkg/engine"
+	"gce/pkg/chess"
+	"strings"
 )
 
 func main() {
-	b := engine.NewDefaultBoard()
+	b := chess.NewDefaultBoard()
 	for {
 		vb := b.VisualBoard()
 		fmt.Println(vb.String())
@@ -19,6 +20,9 @@ func main() {
 		var moveNot string
 		fmt.Print("Move: ")
 		fmt.Scanln(&moveNot)
+		if strings.TrimSpace(moveNot) == "q" {
+			break
+		}
 
 		move, err := b.ParseMove(moveNot)
 		if err != nil {
@@ -29,4 +33,6 @@ func main() {
 			fmt.Println("Invalid move")
 		}
 	}
+
+	fmt.Println(b.GetMoveListInNotation())
 }

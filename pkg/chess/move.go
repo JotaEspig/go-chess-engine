@@ -1,4 +1,4 @@
-package engine
+package chess
 
 // Move represents a move in the game.
 type Move struct {

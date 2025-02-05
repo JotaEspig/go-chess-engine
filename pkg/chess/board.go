@@ -1,8 +1,6 @@
 package chess
 
 import (
-	"errors"
-	"fmt"
 	"gce/pkg/utils"
 	"strconv"
 	"strings"
@@ -84,6 +82,9 @@ func FenToBoard(fen string) *Board {
 		b.Ctx = FenToContext(splitted[1:])
 	}
 
+	// Setup threefold repetition hash
+	boardHash := BoardHash(b.Hash())
+	b.Ctx.ThreesoldRepetition[boardHash] = 1
 	return b
 }
 
@@ -133,6 +134,7 @@ func FenToContext(splitted []string) Context {
 
 	ctx.MoveNumber = uint(moveNumberInt)
 	ctx.HalfMoves = uint(HalfMovesInt)
+	ctx.ThreesoldRepetition = make(ThreefoldRepetitionHashTable)
 	return ctx
 }
 
@@ -166,7 +168,7 @@ func (b Board) AllLegalMoves() []Move {
 	moves := b.AllPossibleMoves()
 	// Filter out moves that are not legal
 	moves = utils.Filter(moves, func(m Move) bool {
-		newBoard := b
+		newBoard := b.Copy()
 		return newBoard.MakeMove(m)
 	})
 
@@ -239,6 +241,7 @@ func (b Board) AllCastlingMoves() []Move {
 }
 
 // MakeMove makes a move on the board.
+// This function does not treat draw positions by threesold repetition, You should check if before hand.
 // Returns true if it's a valid move, false otherwise.
 func (b *Board) MakeMove(m Move) bool {
 	prevBoard := &Board{}
@@ -383,6 +386,13 @@ func (b *Board) MakeMove(m Move) bool {
 		pb.King.Board &= ^m.NewPiecePos
 	}
 
+	// Check if it's a valid position
+	if !b.IsValidPosition() {
+		// Restore to the previous board
+		*b = *prevBoard
+		return false
+	}
+
 	// Check for next move En passant
 	// Default value is 0
 	var enPassantPos uint64 = 0
@@ -409,28 +419,59 @@ func (b *Board) MakeMove(m Move) bool {
 	b.Ctx.WhiteTurn = !b.Ctx.WhiteTurn
 	b.Ctx.EnPassant = enPassantPos
 
-	if !b.IsValidPosition() {
-		// Restore to the previous board
-		*b = *prevBoard
-		return false
+	// Add new position to Threefold repetition hash table
+	boardHash := b.Hash()
+	if n, ok := b.Ctx.ThreesoldRepetition[boardHash]; ok {
+		b.Ctx.ThreesoldRepetition[boardHash] = n + 1
+	} else {
+		b.Ctx.ThreesoldRepetition[boardHash] = 1
 	}
+
+	// Reset cached values to false, because it's a new position
+	b.Ctx.IsKingInCheckCacheSet = false
+	b.Ctx.IsMatedCacheSet = false
+	b.Ctx.IsDrawCacheSet = false
+
+	prevBoard.MoveDone = m
 	b.PrevBoard = prevBoard
-	b.PrevBoard.MoveDone = m
 	return true
 }
 
-func (b Board) IsMated() bool {
+func (b *Board) IsMated() bool {
+	if b.Ctx.IsMatedCacheSet {
+		return b.Ctx.IsMatedCache
+	}
+
+	// Setting cached value
+	b.Ctx.IsMatedCacheSet = true
+
 	isKingInCheckOriginalPos := b.IsKingInCheck()
 	if !isKingInCheckOriginalPos {
+		b.Ctx.IsMatedCache = false
 		return false
 	}
 
 	possibleDefensiveMoves := b.allMovesToDefendCheck()
-	return len(possibleDefensiveMoves) == 0
+	b.Ctx.IsMatedCache = len(possibleDefensiveMoves) == 0
+	if b.Ctx.IsMatedCache {
+		if b.Ctx.WhiteTurn {
+			b.Ctx.Result = BlackWin
+		} else {
+			b.Ctx.Result = WhiteWin
+		}
+	}
+	return b.Ctx.IsMatedCache
 }
 
 // IsKingInCheck returns true if the king is in check.
-func (b Board) IsKingInCheck() bool {
+func (b *Board) IsKingInCheck() bool {
+	if b.Ctx.IsKingInCheckCacheSet {
+		return b.Ctx.IsKingInCheckCache
+	}
+
+	// Setting cached value
+	b.Ctx.IsKingInCheckCacheSet = true
+
 	var kingPos uint64
 	var enemyPb *PartialBoard
 
@@ -446,17 +487,58 @@ func (b Board) IsKingInCheck() bool {
 	// Invert the color to get the enemy moves and see if it's possible to "capture" the king
 	b.Ctx.WhiteTurn = !b.Ctx.WhiteTurn
 	possibleCheckMoves := make([]Move, 0)
-	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Pawns.AllPossibleMoves(b)...)
-	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Knights.AllPossibleMoves(b)...)
-	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Bishops.AllPossibleMoves(b)...)
-	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Rooks.AllPossibleMoves(b)...)
-	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Queens.AllPossibleMoves(b)...)
+	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Pawns.AllPossibleMoves(*b)...)
+	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Knights.AllPossibleMoves(*b)...)
+	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Bishops.AllPossibleMoves(*b)...)
+	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Rooks.AllPossibleMoves(*b)...)
+	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Queens.AllPossibleMoves(*b)...)
+	b.Ctx.WhiteTurn = !b.Ctx.WhiteTurn // Restore to the original value
 
 	for _, move := range possibleCheckMoves {
 		if move.NewPiecePos == kingPos {
+			b.Ctx.IsKingInCheckCache = true
 			return true
 		}
 	}
+	b.Ctx.IsKingInCheckCache = false
+	return false
+}
+
+func (b *Board) IsDraw() bool {
+	if b.Ctx.IsDrawCacheSet {
+		return b.Ctx.IsDrawCache
+	}
+
+	// Setting cached value
+	b.Ctx.IsDrawCacheSet = true
+
+	// 50 moves rule
+	if b.Ctx.HalfMoves >= 100 {
+		b.Ctx.IsDrawCache = true
+		b.Ctx.Result = Draw
+		return true
+	}
+
+	// Stalemate
+	if !b.IsKingInCheck() {
+		possibleMoves := b.AllLegalMoves()
+		if len(possibleMoves) == 0 {
+			b.Ctx.IsDrawCache = true
+			b.Ctx.Result = Draw
+			return true
+		}
+	}
+
+	// Threefold repetition
+	boardHash := BoardHash(b.Hash())
+	if n, ok := b.Ctx.ThreesoldRepetition[boardHash]; ok {
+		if n >= 3 {
+			b.Ctx.IsDrawCache = true
+			b.Ctx.Result = Draw
+			return true
+		}
+	}
+	b.Ctx.IsDrawCache = false
 	return false
 }
 
@@ -464,351 +546,12 @@ func (b Board) MaterialValueBalance() int64 {
 	return int64(b.White.MaterialValue()) - int64(b.Black.MaterialValue())
 }
 
-func (b Board) VisualBoard() VisualBoard {
-	vb := VisualBoard{}
-
-	// White pieces
-	for _, pos := range Int64toPositions(b.White.Pawns.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: true, Type: PawnType}
-	}
-	for _, pos := range Int64toPositions(b.White.Knights.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: true, Type: KnightType}
-	}
-	for _, pos := range Int64toPositions(b.White.Bishops.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: true, Type: BishopType}
-	}
-	for _, pos := range Int64toPositions(b.White.Rooks.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: true, Type: RookType}
-	}
-	for _, pos := range Int64toPositions(b.White.Queens.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: true, Type: QueenType}
-	}
-	for _, pos := range Int64toPositions(b.White.King.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: true, Type: KingType}
-	}
-
-	// Black pieces
-	for _, pos := range Int64toPositions(b.Black.Pawns.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: false, Type: PawnType}
-	}
-	for _, pos := range Int64toPositions(b.Black.Knights.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: false, Type: KnightType}
-	}
-	for _, pos := range Int64toPositions(b.Black.Bishops.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: false, Type: BishopType}
-	}
-	for _, pos := range Int64toPositions(b.Black.Rooks.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: false, Type: RookType}
-	}
-	for _, pos := range Int64toPositions(b.Black.Queens.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: false, Type: QueenType}
-	}
-	for _, pos := range Int64toPositions(b.Black.King.Board) {
-		col, row := pos[0], pos[1]
-		vb.Board[row][col] = VisualPiece{IsWhite: false, Type: KingType}
-	}
-
-	return vb
-}
-
-func (b Board) ParseMove(notation string) (Move, error) {
-	originalNotation := notation
-	notation = strings.ReplaceAll(notation, "+", "")
-	notation = strings.ReplaceAll(notation, "#", "")
-
-	if notation == "O-O" {
-		move := Move{IsCastling: true, PieceType: KingType}
-		if b.Ctx.WhiteTurn {
-			move.OldPiecePos = b.White.King.Board
-		} else {
-			move.OldPiecePos = b.Black.King.Board
-		}
-		move.NewPiecePos = moveRight(move.OldPiecePos, 2)
-		return move, nil
-	} else if notation == "O-O-O" {
-		move := Move{IsCastling: true, PieceType: KingType}
-		if b.Ctx.WhiteTurn {
-			move.OldPiecePos = b.White.King.Board
-		} else {
-			move.OldPiecePos = b.Black.King.Board
-		}
-		move.NewPiecePos = moveLeft(move.OldPiecePos, 2)
-		return move, nil
-	}
-
-	var pieceType PieceType
-	var newPieceType PieceType
-	// Check if it's a promotion
-	if strings.Contains(notation, "=") {
-		parts := strings.Split(notation, "=")
-		switch parts[1] {
-		case "Q":
-			newPieceType = QueenType
-		case "R":
-			newPieceType = RookType
-		case "B":
-			newPieceType = BishopType
-		case "N":
-			newPieceType = KnightType
-		default:
-			return Move{}, errors.New("Invalid promotion piece type")
-		}
-
-		notation = parts[0]
-		pieceType = PawnType
-	} else {
-		// Get type of piece
-		switch notation[0] {
-		case 'N':
-			pieceType = KnightType
-		case 'B':
-			pieceType = BishopType
-		case 'R':
-			pieceType = RookType
-		case 'Q':
-			pieceType = QueenType
-		case 'K':
-			pieceType = KingType
-		default:
-			pieceType = PawnType
-		}
-	}
-
-	var piecePossibleMoves []Move
-	var pb PartialBoard
-	if b.Ctx.WhiteTurn {
-		pb = b.White
-	} else {
-		pb = b.Black
-	}
-
-	switch pieceType {
-	case PawnType:
-		piecePossibleMoves = pb.Pawns.AllPossibleMoves(b)
-	case KnightType:
-		piecePossibleMoves = pb.Knights.AllPossibleMoves(b)
-	case BishopType:
-		piecePossibleMoves = pb.Bishops.AllPossibleMoves(b)
-	case RookType:
-		piecePossibleMoves = pb.Rooks.AllPossibleMoves(b)
-	case QueenType:
-		piecePossibleMoves = pb.Queens.AllPossibleMoves(b)
-	case KingType:
-		piecePossibleMoves = pb.King.AllPossibleMoves(b)
-	default:
-		return Move{}, errors.New(fmt.Sprintf("Invalid piece type: %v", pieceType))
-	}
-
-	// Check if it's a capture
-	isCapture := strings.Contains(notation, "x")
-	// Get the destination position
-	var destination string
-	if isCapture {
-		splitted := strings.Split(notation, "x")
-		destination = splitted[1]
-	} else {
-		destination = notation[len(notation)-2:]
-	}
-
-	// Get the destination position
-	col := int(destination[0] - 'a')
-	row := int(destination[1] - '1')
-	destinationPos := PositionToUInt64(col, row)
-
-	// Filter out moves that are not the destination position
-	piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
-		return m.NewPiecePos == destinationPos && m.NewPieceType == newPieceType
-	})
-
-	var move Move
-	if len(piecePossibleMoves) == 0 {
-		return Move{}, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
-	} else if len(piecePossibleMoves) == 1 {
-		move = piecePossibleMoves[0]
-	} else {
-		var source string
-		if pieceType == PawnType {
-			source = string(notation[0])
-		} else {
-			source = string(notation[1])
-		}
-
-		// if source is a column
-		if source >= "a" && source <= "h" {
-			col := int(source[0] - 'a')
-			// Filter out moves that are not the source column
-			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
-				return Int64toPositions(m.OldPiecePos)[0][0] == col
-			})
-		} else {
-			row := int(source[0] - '1')
-			// Filter out moves that are not the source row
-			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
-				return Int64toPositions(m.OldPiecePos)[0][1] == row
-			})
-		}
-
-		if len(piecePossibleMoves) == 0 {
-			return Move{}, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
-		}
-
-		if len(piecePossibleMoves) > 1 {
-			remaningAmbiguityRemoval := notation[2]
-			if remaningAmbiguityRemoval >= 'a' && remaningAmbiguityRemoval <= 'h' {
-				col := int(remaningAmbiguityRemoval - 'a')
-				// Filter out moves that are not the source column
-				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
-					return Int64toPositions(m.OldPiecePos)[0][0] == col
-				})
-			} else {
-				row := int(remaningAmbiguityRemoval - '1')
-				// Filter out moves that are not the source row
-				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
-					return Int64toPositions(m.OldPiecePos)[0][1] == row
-				})
-			}
-		}
-
-		if len(piecePossibleMoves) != 1 {
-			return Move{}, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
-		}
-
-		move = piecePossibleMoves[0]
-	}
-
-	return move, nil
-}
-
-func (b Board) MoveToNotation(move Move) string {
-	if move.IsCastling {
-		if move.NewPiecePos > move.OldPiecePos {
-			return "O-O-O"
-		}
-		return "O-O"
-	}
-
-	notation := ""
-	switch move.PieceType {
-	case KnightType:
-		notation += "N"
-	case BishopType:
-		notation += "B"
-	case RookType:
-		notation += "R"
-	case QueenType:
-		notation += "Q"
-	case KingType:
-		notation += "K"
-	default:
-		sourceCol := Int64toPositions(move.OldPiecePos)[0][0]
-		notation += string(rune('a' + sourceCol))
-	}
-
-	// Check for ambiguity
-	var pb PartialBoard
-	var possiblePieceMoves []Move
-	if b.Ctx.WhiteTurn {
-		pb = b.White
-	} else {
-		pb = b.Black
-	}
-	switch move.PieceType {
-	case PawnType:
-		possiblePieceMoves = pb.Pawns.AllPossibleMoves(b)
-	case KnightType:
-		possiblePieceMoves = pb.Knights.AllPossibleMoves(b)
-	case BishopType:
-		possiblePieceMoves = pb.Bishops.AllPossibleMoves(b)
-	case RookType:
-		possiblePieceMoves = pb.Rooks.AllPossibleMoves(b)
-	case QueenType:
-		possiblePieceMoves = pb.Queens.AllPossibleMoves(b)
-	case KingType:
-		possiblePieceMoves = pb.King.AllPossibleMoves(b)
-	default:
-		log.Fatalf("Invalid piece type: %v", move.PieceType)
-	}
-
-	// Filter out moves that are not the destination position
-	possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
-		return m.NewPiecePos == move.NewPiecePos && m.NewPieceType == move.NewPieceType
-	})
-	length := len(possiblePieceMoves)
-	if length > 1 {
-		// Check for ambiguity
-		// Check for column ambiguity
-		possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
-			return Int64toPositions(m.OldPiecePos)[0][0] == Int64toPositions(move.OldPiecePos)[0][0]
-		})
-		if length != len(possiblePieceMoves) {
-			notation += string(rune('a' + Int64toPositions(move.OldPiecePos)[0][0]))
-		}
-		if len(possiblePieceMoves) > 1 {
-			// Check for row ambiguity
-			possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
-				return Int64toPositions(m.OldPiecePos)[0][1] == Int64toPositions(move.OldPiecePos)[0][1]
-			})
-		}
-		if len(possiblePieceMoves) > 1 {
-			log.Fatalf("Invalid move: %v", move)
-		}
-		if len(possiblePieceMoves) == 1 {
-			notation += string(rune('1' + Int64toPositions(move.OldPiecePos)[0][1]))
-		}
-	}
-
-	if move.IsCapture {
-		notation += "x"
-	}
-	dest := Int64toPositions(move.NewPiecePos)[0]
-	destCol, destRow := dest[0], dest[1]
-	// if it's a pawn move and not a capture, then the column was already added
-	if move.PieceType != PawnType && !move.IsCapture {
-		notation += string(rune('a' + destCol))
-	}
-	notation += string(rune('1' + destRow))
-
-	return notation
-}
-
-func (b Board) getMoveListInNotation() string {
-	if b.MoveDone == (Move{}) {
-		return b.PrevBoard.getMoveListInNotation()
-	}
-	moveNotation := b.MoveToNotation(b.MoveDone)
-	if b.PrevBoard == nil {
-		return "1. " + moveNotation
-	}
-	moveNumberIfNeeded := ""
-	if b.Ctx.WhiteTurn {
-		moveNumberInt := b.Ctx.MoveNumber
-		moveNumberIfNeeded = strconv.Itoa(int(moveNumberInt)) + ". "
-	}
-	return b.PrevBoard.getMoveListInNotation() + " " + moveNumberIfNeeded + moveNotation
-}
-
-func (b Board) GetMoveListInNotation() string {
-	moveList := b.getMoveListInNotation()
-	moveList = strings.TrimSpace(moveList)
-	return moveList
-}
-
 func (b Board) Copy() Board {
 	return Board{
 		White:     b.White,
 		Black:     b.Black,
-		Ctx:       b.Ctx,
+		Ctx:       b.Ctx.Copy(),
+		MoveDone:  b.MoveDone,
 		PrevBoard: b.PrevBoard,
 	}
 }

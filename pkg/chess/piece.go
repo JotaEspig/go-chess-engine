@@ -9,7 +9,9 @@ const (
 	RookType
 	QueenType
 	KingType
-) // Enum for the different values for each pieces.
+)
+
+// Enum for the different values for each pieces.
 // The int values represent the value of the piece
 const (
 	InvalidValue PieceValue = 0

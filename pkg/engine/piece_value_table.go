@@ -119,3 +119,17 @@ func pieceTypeTableValue(piecesPosition uint64, pieceType chess.PieceType, isWhi
 	}
 	return value
 }
+
+func BoardEvaluationByPieceSquareTable(board chess.Board) float64 {
+	evaluation := pieceTypeTableValue(board.White.Pawns.Board, chess.PawnType, true)
+	evaluation += pieceTypeTableValue(board.White.Knights.Board, chess.KnightType, true)
+	evaluation += pieceTypeTableValue(board.White.Bishops.Board, chess.BishopType, true)
+	evaluation += pieceTypeTableValue(board.White.Rooks.Board, chess.RookType, true)
+	evaluation += pieceTypeTableValue(board.White.Queens.Board, chess.QueenType, true)
+	evaluation += pieceTypeTableValue(board.Black.Pawns.Board, chess.PawnType, false)
+	evaluation += pieceTypeTableValue(board.Black.Knights.Board, chess.KnightType, false)
+	evaluation += pieceTypeTableValue(board.Black.Bishops.Board, chess.BishopType, false)
+	evaluation += pieceTypeTableValue(board.Black.Rooks.Board, chess.RookType, false)
+	evaluation += pieceTypeTableValue(board.Black.Queens.Board, chess.QueenType, false)
+	return evaluation
+}

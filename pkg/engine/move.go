@@ -4,9 +4,10 @@ package engine
 type Move struct {
 	OldPiecePos  uint64
 	NewPiecePos  uint64
+	IsCastling   bool
 	IsCapture    bool
-	PieceType    PieceType
 	IsPromotion  bool
+	PieceType    PieceType
 	NewPieceType PieceType
 }
 

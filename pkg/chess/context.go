@@ -1,7 +1,7 @@
 package chess
 
 type Context struct {
-	WhiteToMove            bool
+	WhiteTurn              bool
 	WhiteCastlingKingSide  bool
 	WhiteCastlingQueenSide bool
 	BlackCastlingKingSide  bool

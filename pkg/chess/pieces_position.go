@@ -26,14 +26,14 @@ func (pp PiecesPosition) Value() uint64 {
 
 func (pp PiecesPosition) AllPossibleMoves(b Board) []Move {
 	var moves []Move
+	movesFn := GetMovesFunction(pp.Type)
+	if movesFn == nil {
+		log.Fatal("Invalid piece type")
+	}
+
 	for i := 0; i < 64; i++ {
 		// if != 0, there is a piece at this position.
 		if pp.Board&(1<<uint(i)) != 0 {
-			movesFn := GetMovesFunction(pp.Type)
-			if movesFn == nil {
-				log.Fatal("Invalid piece type")
-			}
-
 			newMoves := movesFn(b, 1<<uint(i))
 			moves = append(moves, newMoves...)
 		}

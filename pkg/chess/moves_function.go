@@ -22,7 +22,7 @@ func normalMoves(board Board, pieceBoard uint64, directions []int, pieceType Pie
 			// check for collision
 			var color PartialBoard
 			var invertedColor PartialBoard
-			if board.Ctx.WhiteToMove {
+			if board.Ctx.WhiteTurn {
 				color = board.White
 				invertedColor = board.Black
 			} else {
@@ -54,7 +54,7 @@ func knightMove(board Board, pieceBoard uint64, fn func(uint64) uint64) []Move {
 	if newPieceBoard != 0 {
 		var color PartialBoard
 		var invertedColor PartialBoard
-		if board.Ctx.WhiteToMove {
+		if board.Ctx.WhiteTurn {
 			color = board.White
 			invertedColor = board.Black
 		} else {
@@ -80,7 +80,7 @@ func PawnMoves(board Board, pieceBoard uint64) []Move {
 	var dirFn func(uint64, int) uint64
 	var isInPromotionRow func(uint64) bool
 	var isInInitialRow func(uint64) bool
-	if board.Ctx.WhiteToMove {
+	if board.Ctx.WhiteTurn {
 		dirFn = moveUp
 		isInPromotionRow = func(pos uint64) bool {
 			return pos>>56 != 0
@@ -108,6 +108,12 @@ func PawnMoves(board Board, pieceBoard uint64) []Move {
 	whiteMask := board.White.AllBoardMask()
 	blackMask := board.Black.AllBoardMask()
 	allColorBoard := whiteMask | blackMask
+	var enemyMask uint64
+	if board.Ctx.WhiteTurn {
+		enemyMask = blackMask
+	} else {
+		enemyMask = whiteMask
+	}
 	// If there's no collision
 	if newPieceBoard&allColorBoard == 0 {
 		isPromotion := isInPromotionRow(newPieceBoard)
@@ -140,7 +146,7 @@ func PawnMoves(board Board, pieceBoard uint64) []Move {
 	captureRight := dirFn(moveRight(pieceBoard, 1), 1)
 	capturePoss := []uint64{captureLeft, captureRight}
 	for _, capturePos := range capturePoss {
-		if capturePos&blackMask == 0 && capturePos&board.Ctx.EnPassant == 0 {
+		if capturePos&enemyMask == 0 && capturePos&board.Ctx.EnPassant == 0 {
 			continue
 		}
 
@@ -207,7 +213,7 @@ func KingMoves(board Board, pieceBoard uint64) []Move {
 		// check for collision
 		var color PartialBoard
 		var invertedColor PartialBoard
-		if board.Ctx.WhiteToMove {
+		if board.Ctx.WhiteTurn {
 			color = board.White
 			invertedColor = board.Black
 		} else {

@@ -3,6 +3,7 @@ package chess
 import (
 	"errors"
 	"fmt"
+	"gce/pkg/utils"
 	"strconv"
 	"strings"
 
@@ -93,9 +94,9 @@ func FenToContext(splitted []string) Context {
 
 	ctx := Context{}
 	if splitted[0] == "w" {
-		ctx.WhiteToMove = true
+		ctx.WhiteTurn = true
 	} else {
-		ctx.WhiteToMove = false
+		ctx.WhiteTurn = false
 	}
 
 	castling := splitted[1]
@@ -144,15 +145,15 @@ func (b Board) IsValidPosition() bool {
 	}
 
 	// originalWhiteToMove := b.Ctx.WhiteToMove
-	if b.Ctx.WhiteToMove {
+	if b.Ctx.WhiteTurn {
 		// Check if the black king is in check while it's white's turn. Meaning that an illegal move was made.
-		b.Ctx.WhiteToMove = false
+		b.Ctx.WhiteTurn = false
 		if b.IsKingInCheck() {
 			return false
 		}
 	} else {
 		// Check if the white king is in check while it's black's turn. Meaning that an illegal move was made.
-		b.Ctx.WhiteToMove = true
+		b.Ctx.WhiteTurn = true
 		if b.IsKingInCheck() {
 			return false
 		}
@@ -164,7 +165,7 @@ func (b Board) IsValidPosition() bool {
 func (b Board) AllLegalMoves() []Move {
 	moves := b.AllPossibleMoves()
 	// Filter out moves that are not legal
-	moves = Filter(moves, func(m Move) bool {
+	moves = utils.Filter(moves, func(m Move) bool {
 		newBoard := b
 		return newBoard.MakeMove(m)
 	})
@@ -175,7 +176,7 @@ func (b Board) AllLegalMoves() []Move {
 func (b Board) AllPossibleMoves() []Move {
 	moves := make([]Move, 0)
 	// "Normal" moves (including En passant and promotion)
-	if b.Ctx.WhiteToMove {
+	if b.Ctx.WhiteTurn {
 		moves = append(moves, b.White.AllPossibleMoves(b)...)
 	} else {
 		moves = append(moves, b.Black.AllPossibleMoves(b)...)
@@ -202,7 +203,7 @@ func (b Board) AllCastlingMoves() []Move {
 	var QueenSideSpaceMask uint64
 	var kingSideSafeSpot uint64
 	var queenSideSafeSpot uint64
-	if b.Ctx.WhiteToMove {
+	if b.Ctx.WhiteTurn {
 		pb = b.White
 		anyCastleAvailable = b.Ctx.WhiteCastlingKingSide || b.Ctx.WhiteCastlingQueenSide
 		kingSideSpaceMask = ^uint64(6)    // 6 is the bits that represents F1 and G1
@@ -244,7 +245,7 @@ func (b *Board) MakeMove(m Move) bool {
 	*prevBoard = b.Copy()
 
 	var pb *PartialBoard
-	if b.Ctx.WhiteToMove {
+	if b.Ctx.WhiteTurn {
 		pb = &b.White
 	} else {
 		pb = &b.Black
@@ -302,7 +303,7 @@ func (b *Board) MakeMove(m Move) bool {
 		}
 
 		// Check if it is allowed castling giving the context of the board
-		if b.Ctx.WhiteToMove {
+		if b.Ctx.WhiteTurn {
 			if isKingSide {
 				if !b.Ctx.WhiteCastlingKingSide {
 					// Restore to the previous board
@@ -334,7 +335,7 @@ func (b *Board) MakeMove(m Move) bool {
 
 		// Move rook
 		if isKingSide {
-			if b.Ctx.WhiteToMove {
+			if b.Ctx.WhiteTurn {
 				b.White.Rooks.Board &= ^uint64(1) // H1
 				b.White.Rooks.Board |= uint64(4)  // F1
 			} else {
@@ -342,7 +343,7 @@ func (b *Board) MakeMove(m Move) bool {
 				b.Black.Rooks.Board |= uint64(288_230_376_151_711_744) // F8
 			}
 		} else {
-			if b.Ctx.WhiteToMove {
+			if b.Ctx.WhiteTurn {
 				b.White.Rooks.Board &= ^uint64(128) // A1
 				b.White.Rooks.Board |= uint64(16)   // D1
 			} else {
@@ -360,7 +361,7 @@ func (b *Board) MakeMove(m Move) bool {
 	// Removes enemy piece if it's a capture
 	if m.IsCapture {
 		// Inverted color to erase the piece from the board
-		if b.Ctx.WhiteToMove {
+		if b.Ctx.WhiteTurn {
 			pb = &b.Black
 		} else {
 			pb = &b.White
@@ -396,7 +397,7 @@ func (b *Board) MakeMove(m Move) bool {
 	}
 
 	// means black completed its turn
-	if !b.Ctx.WhiteToMove {
+	if !b.Ctx.WhiteTurn {
 		b.Ctx.MoveNumber++
 	}
 	// Check for half moves
@@ -405,7 +406,7 @@ func (b *Board) MakeMove(m Move) bool {
 	} else {
 		b.Ctx.HalfMoves = 0
 	}
-	b.Ctx.WhiteToMove = !b.Ctx.WhiteToMove
+	b.Ctx.WhiteTurn = !b.Ctx.WhiteTurn
 	b.Ctx.EnPassant = enPassantPos
 
 	if !b.IsValidPosition() {
@@ -433,7 +434,7 @@ func (b Board) IsKingInCheck() bool {
 	var kingPos uint64
 	var enemyPb *PartialBoard
 
-	isWhite := b.Ctx.WhiteToMove
+	isWhite := b.Ctx.WhiteTurn
 	if isWhite {
 		kingPos = b.White.King.Board
 		enemyPb = &b.Black
@@ -443,7 +444,7 @@ func (b Board) IsKingInCheck() bool {
 	}
 
 	// Invert the color to get the enemy moves and see if it's possible to "capture" the king
-	b.Ctx.WhiteToMove = !b.Ctx.WhiteToMove
+	b.Ctx.WhiteTurn = !b.Ctx.WhiteTurn
 	possibleCheckMoves := make([]Move, 0)
 	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Pawns.AllPossibleMoves(b)...)
 	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Knights.AllPossibleMoves(b)...)
@@ -528,7 +529,7 @@ func (b Board) ParseMove(notation string) (Move, error) {
 
 	if notation == "O-O" {
 		move := Move{IsCastling: true, PieceType: KingType}
-		if b.Ctx.WhiteToMove {
+		if b.Ctx.WhiteTurn {
 			move.OldPiecePos = b.White.King.Board
 		} else {
 			move.OldPiecePos = b.Black.King.Board
@@ -537,7 +538,7 @@ func (b Board) ParseMove(notation string) (Move, error) {
 		return move, nil
 	} else if notation == "O-O-O" {
 		move := Move{IsCastling: true, PieceType: KingType}
-		if b.Ctx.WhiteToMove {
+		if b.Ctx.WhiteTurn {
 			move.OldPiecePos = b.White.King.Board
 		} else {
 			move.OldPiecePos = b.Black.King.Board
@@ -586,7 +587,7 @@ func (b Board) ParseMove(notation string) (Move, error) {
 
 	var piecePossibleMoves []Move
 	var pb PartialBoard
-	if b.Ctx.WhiteToMove {
+	if b.Ctx.WhiteTurn {
 		pb = b.White
 	} else {
 		pb = b.Black
@@ -626,7 +627,7 @@ func (b Board) ParseMove(notation string) (Move, error) {
 	destinationPos := PositionToUInt64(col, row)
 
 	// Filter out moves that are not the destination position
-	piecePossibleMoves = Filter(piecePossibleMoves, func(m Move) bool {
+	piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
 		return m.NewPiecePos == destinationPos && m.NewPieceType == newPieceType
 	})
 
@@ -647,13 +648,13 @@ func (b Board) ParseMove(notation string) (Move, error) {
 		if source >= "a" && source <= "h" {
 			col := int(source[0] - 'a')
 			// Filter out moves that are not the source column
-			piecePossibleMoves = Filter(piecePossibleMoves, func(m Move) bool {
+			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
 				return Int64toPositions(m.OldPiecePos)[0][0] == col
 			})
 		} else {
 			row := int(source[0] - '1')
 			// Filter out moves that are not the source row
-			piecePossibleMoves = Filter(piecePossibleMoves, func(m Move) bool {
+			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
 				return Int64toPositions(m.OldPiecePos)[0][1] == row
 			})
 		}
@@ -667,13 +668,13 @@ func (b Board) ParseMove(notation string) (Move, error) {
 			if remaningAmbiguityRemoval >= 'a' && remaningAmbiguityRemoval <= 'h' {
 				col := int(remaningAmbiguityRemoval - 'a')
 				// Filter out moves that are not the source column
-				piecePossibleMoves = Filter(piecePossibleMoves, func(m Move) bool {
+				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
 					return Int64toPositions(m.OldPiecePos)[0][0] == col
 				})
 			} else {
 				row := int(remaningAmbiguityRemoval - '1')
 				// Filter out moves that are not the source row
-				piecePossibleMoves = Filter(piecePossibleMoves, func(m Move) bool {
+				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
 					return Int64toPositions(m.OldPiecePos)[0][1] == row
 				})
 			}
@@ -717,7 +718,7 @@ func (b Board) MoveToNotation(move Move) string {
 	// Check for ambiguity
 	var pb PartialBoard
 	var possiblePieceMoves []Move
-	if b.Ctx.WhiteToMove {
+	if b.Ctx.WhiteTurn {
 		pb = b.White
 	} else {
 		pb = b.Black
@@ -740,14 +741,14 @@ func (b Board) MoveToNotation(move Move) string {
 	}
 
 	// Filter out moves that are not the destination position
-	possiblePieceMoves = Filter(possiblePieceMoves, func(m Move) bool {
+	possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
 		return m.NewPiecePos == move.NewPiecePos && m.NewPieceType == move.NewPieceType
 	})
 	length := len(possiblePieceMoves)
 	if length > 1 {
 		// Check for ambiguity
 		// Check for column ambiguity
-		possiblePieceMoves = Filter(possiblePieceMoves, func(m Move) bool {
+		possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
 			return Int64toPositions(m.OldPiecePos)[0][0] == Int64toPositions(move.OldPiecePos)[0][0]
 		})
 		if length != len(possiblePieceMoves) {
@@ -755,7 +756,7 @@ func (b Board) MoveToNotation(move Move) string {
 		}
 		if len(possiblePieceMoves) > 1 {
 			// Check for row ambiguity
-			possiblePieceMoves = Filter(possiblePieceMoves, func(m Move) bool {
+			possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
 				return Int64toPositions(m.OldPiecePos)[0][1] == Int64toPositions(move.OldPiecePos)[0][1]
 			})
 		}
@@ -790,7 +791,7 @@ func (b Board) getMoveListInNotation() string {
 		return "1. " + moveNotation
 	}
 	moveNumberIfNeeded := ""
-	if b.Ctx.WhiteToMove {
+	if b.Ctx.WhiteTurn {
 		moveNumberInt := b.Ctx.MoveNumber
 		moveNumberIfNeeded = strconv.Itoa(int(moveNumberInt)) + ". "
 	}

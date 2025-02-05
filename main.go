@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"gce/pkg/chess"
+	"gce/pkg/engine"
 	"strings"
 )
 
@@ -11,6 +12,9 @@ func main() {
 	for {
 		vb := b.VisualBoard()
 		fmt.Println(vb.String())
+
+		evaluation := engine.EvaluatePosition(*b)
+		fmt.Printf("Evaluation: %.2f\n", evaluation)
 
 		if b.IsMated() {
 			fmt.Println("CHECKMATE BABY!!!!")
@@ -30,7 +34,7 @@ func main() {
 			continue
 		}
 		if !b.MakeMove(move) {
-			fmt.Println("Invalid move")
+			fmt.Println("Illegal move")
 		}
 	}
 

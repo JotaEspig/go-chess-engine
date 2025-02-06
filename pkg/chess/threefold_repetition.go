@@ -1,6 +1,7 @@
 package chess
 
 import (
+	"gce/pkg/utils"
 	"hash"
 	"hash/fnv"
 )
@@ -18,8 +19,8 @@ func (trht ThreefoldRepetitionHashTable) Copy() ThreefoldRepetitionHashTable {
 }
 
 func (p PiecesPosition) hash(h hash.Hash64) {
-	hashUint64(h, p.Board)
-	hashUint(h, uint(p.Type))
+	utils.HashUint64(h, p.Board)
+	utils.HashUint(h, uint(p.Type))
 }
 
 func (pb PartialBoard) hash(h hash.Hash64) {
@@ -36,20 +37,4 @@ func (b Board) Hash() BoardHash {
 	b.White.hash(h)
 	b.Black.hash(h)
 	return BoardHash(h.Sum64())
-}
-
-func hashUint64(h hash.Hash64, value uint64) {
-	var buf [8]byte
-	for i := uint(0); i < 8; i++ {
-		buf[i] = byte(value >> (i * 8))
-	}
-	h.Write(buf[:])
-}
-
-func hashUint(h hash.Hash64, value uint) {
-	var buf [4]byte
-	for i := uint(0); i < 4; i++ {
-		buf[i] = byte(value >> (i * 8))
-	}
-	h.Write(buf[:])
 }

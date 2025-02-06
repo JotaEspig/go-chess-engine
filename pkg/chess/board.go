@@ -165,6 +165,11 @@ func (b Board) IsValidPosition() bool {
 }
 
 func (b Board) AllLegalMoves() []Move {
+	hashForMoves := b.HashForAllLegalMoves()
+	if cachedMoves, ok := allLegalBoardMovesHashTable[hashForMoves]; ok {
+		return cachedMoves
+	}
+
 	moves := b.AllPossibleMoves()
 	// Filter out moves that are not legal
 	moves = utils.Filter(moves, func(m Move) bool {
@@ -172,30 +177,24 @@ func (b Board) AllLegalMoves() []Move {
 		return newBoard.MakeMove(m)
 	})
 
+	allLegalBoardMovesHashTable[hashForMoves] = moves
 	return moves
 }
 
 func (b Board) AllPossibleMoves() []Move {
-	moves := make([]Move, 0)
-	// "Normal" moves (including En passant and promotion)
+	var pb *PartialBoard
 	if b.Ctx.WhiteTurn {
-		moves = append(moves, b.White.AllPossibleMoves(b)...)
+		pb = &b.White
 	} else {
-		moves = append(moves, b.Black.AllPossibleMoves(b)...)
+		pb = &b.Black
 	}
 
+	// "Normal" moves (including En passant and promotion)
+	moves := pb.AllPossibleMoves(b)
 	// Castling
 	moves = append(moves, b.AllCastlingMoves()...)
 
 	return moves
-}
-
-func (b Board) allMovesToDefendCheck() []Move {
-	if !b.IsKingInCheck() {
-		log.Fatal("King is not in check")
-	}
-
-	return b.AllLegalMoves()
 }
 
 func (b Board) AllCastlingMoves() []Move {
@@ -386,13 +385,6 @@ func (b *Board) MakeMove(m Move) bool {
 		pb.King.Board &= ^m.NewPiecePos
 	}
 
-	// Check if it's a valid position
-	if !b.IsValidPosition() {
-		// Restore to the previous board
-		*b = *prevBoard
-		return false
-	}
-
 	// Check for next move En passant
 	// Default value is 0
 	var enPassantPos uint64 = 0
@@ -432,6 +424,13 @@ func (b *Board) MakeMove(m Move) bool {
 	b.Ctx.IsMatedCacheSet = false
 	b.Ctx.IsDrawCacheSet = false
 
+	// Check if it's a valid position
+	// Should be the last thing to do (besides setting the previous board)
+	if !b.IsValidPosition() {
+		// Restore to the previous board
+		*b = *prevBoard
+		return false
+	}
 	prevBoard.MoveDone = m
 	b.PrevBoard = prevBoard
 	return true
@@ -451,7 +450,7 @@ func (b *Board) IsMated() bool {
 		return false
 	}
 
-	possibleDefensiveMoves := b.allMovesToDefendCheck()
+	possibleDefensiveMoves := b.AllLegalMoves()
 	b.Ctx.IsMatedCache = len(possibleDefensiveMoves) == 0
 	if b.Ctx.IsMatedCache {
 		if b.Ctx.WhiteTurn {
@@ -486,8 +485,7 @@ func (b *Board) IsKingInCheck() bool {
 
 	// Invert the color to get the enemy moves and see if it's possible to "capture" the king
 	b.Ctx.WhiteTurn = !b.Ctx.WhiteTurn
-	possibleCheckMoves := make([]Move, 0)
-	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Pawns.AllPossibleMoves(*b)...)
+	possibleCheckMoves := enemyPb.Pawns.AllPossibleMoves(*b)
 	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Knights.AllPossibleMoves(*b)...)
 	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Bishops.AllPossibleMoves(*b)...)
 	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Rooks.AllPossibleMoves(*b)...)

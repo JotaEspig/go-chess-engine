@@ -6,9 +6,9 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-type MoveSlice []chess.Move
+type MoveSlice []*chess.Move
 
-func MoveSortingScore(move chess.Move) int {
+func MoveSortingScore(move *chess.Move) int {
 	score := 0
 	if move.IsPromotion {
 		score += 100

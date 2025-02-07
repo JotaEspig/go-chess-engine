@@ -10,13 +10,13 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-func (b Board) ParseMove(notation string) (Move, error) {
+func (b Board) ParseMove(notation string) (*Move, error) {
 	originalNotation := notation
 	notation = strings.ReplaceAll(notation, "+", "")
 	notation = strings.ReplaceAll(notation, "#", "")
 
 	if notation == "O-O" {
-		move := Move{IsCastling: true, PieceType: KingType}
+		move := &Move{IsCastling: true, PieceType: KingType}
 		if b.Ctx.WhiteTurn {
 			move.OldPiecePos = b.White.King.Board
 		} else {
@@ -25,7 +25,7 @@ func (b Board) ParseMove(notation string) (Move, error) {
 		move.NewPiecePos = moveRight(move.OldPiecePos, 2)
 		return move, nil
 	} else if notation == "O-O-O" {
-		move := Move{IsCastling: true, PieceType: KingType}
+		move := &Move{IsCastling: true, PieceType: KingType}
 		if b.Ctx.WhiteTurn {
 			move.OldPiecePos = b.White.King.Board
 		} else {
@@ -50,7 +50,7 @@ func (b Board) ParseMove(notation string) (Move, error) {
 		case "N":
 			newPieceType = KnightType
 		default:
-			return Move{}, errors.New("Invalid promotion piece type")
+			return nil, errors.New("Invalid promotion piece type")
 		}
 
 		notation = parts[0]
@@ -73,7 +73,7 @@ func (b Board) ParseMove(notation string) (Move, error) {
 		}
 	}
 
-	var piecePossibleMoves []Move
+	var piecePossibleMoves []*Move
 	var pb PartialBoard
 	if b.Ctx.WhiteTurn {
 		pb = b.White
@@ -95,7 +95,7 @@ func (b Board) ParseMove(notation string) (Move, error) {
 	case KingType:
 		piecePossibleMoves = pb.King.AllPossibleMoves(b)
 	default:
-		return Move{}, errors.New(fmt.Sprintf("Invalid piece type: %v", pieceType))
+		return nil, errors.New(fmt.Sprintf("Invalid piece type: %v", pieceType))
 	}
 
 	// Check if it's a capture
@@ -115,13 +115,13 @@ func (b Board) ParseMove(notation string) (Move, error) {
 	destinationPos := PositionToUInt64(col, row)
 
 	// Filter out moves that are not the destination position
-	piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
+	piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m *Move) bool {
 		return m.NewPiecePos == destinationPos && m.NewPieceType == newPieceType
 	})
 
-	var move Move
+	var move *Move
 	if len(piecePossibleMoves) == 0 {
-		return Move{}, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
+		return nil, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
 	} else if len(piecePossibleMoves) == 1 {
 		move = piecePossibleMoves[0]
 	} else {
@@ -136,19 +136,19 @@ func (b Board) ParseMove(notation string) (Move, error) {
 		if source >= "a" && source <= "h" {
 			col := int(source[0] - 'a')
 			// Filter out moves that are not the source column
-			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
+			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m *Move) bool {
 				return Int64toPositions(m.OldPiecePos)[0][0] == col
 			})
 		} else {
 			row := int(source[0] - '1')
 			// Filter out moves that are not the source row
-			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
+			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m *Move) bool {
 				return Int64toPositions(m.OldPiecePos)[0][1] == row
 			})
 		}
 
 		if len(piecePossibleMoves) == 0 {
-			return Move{}, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
+			return nil, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
 		}
 
 		if len(piecePossibleMoves) > 1 {
@@ -156,20 +156,20 @@ func (b Board) ParseMove(notation string) (Move, error) {
 			if remaningAmbiguityRemoval >= 'a' && remaningAmbiguityRemoval <= 'h' {
 				col := int(remaningAmbiguityRemoval - 'a')
 				// Filter out moves that are not the source column
-				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
+				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m *Move) bool {
 					return Int64toPositions(m.OldPiecePos)[0][0] == col
 				})
 			} else {
 				row := int(remaningAmbiguityRemoval - '1')
 				// Filter out moves that are not the source row
-				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
+				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m *Move) bool {
 					return Int64toPositions(m.OldPiecePos)[0][1] == row
 				})
 			}
 		}
 
 		if len(piecePossibleMoves) != 1 {
-			return Move{}, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
+			return nil, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
 		}
 
 		move = piecePossibleMoves[0]
@@ -178,7 +178,7 @@ func (b Board) ParseMove(notation string) (Move, error) {
 	return move, nil
 }
 
-func (b Board) MoveToNotation(move Move) string {
+func (b Board) MoveToNotation(move *Move) string {
 	if move.IsCastling {
 		if move.NewPiecePos > move.OldPiecePos {
 			return "O-O-O"
@@ -205,7 +205,7 @@ func (b Board) MoveToNotation(move Move) string {
 
 	// Check for ambiguity
 	var pb PartialBoard
-	var possiblePieceMoves []Move
+	var possiblePieceMoves []*Move
 	if b.Ctx.WhiteTurn {
 		pb = b.White
 	} else {
@@ -229,14 +229,14 @@ func (b Board) MoveToNotation(move Move) string {
 	}
 
 	// Filter out moves that are not the destination position
-	possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
+	possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m *Move) bool {
 		return m.NewPiecePos == move.NewPiecePos && m.NewPieceType == move.NewPieceType
 	})
 	length := len(possiblePieceMoves)
 	if length > 1 {
 		// Check for ambiguity
 		// Check for column ambiguity
-		possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
+		possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m *Move) bool {
 			return Int64toPositions(m.OldPiecePos)[0][0] == Int64toPositions(move.OldPiecePos)[0][0]
 		})
 		if length != len(possiblePieceMoves) {
@@ -244,7 +244,7 @@ func (b Board) MoveToNotation(move Move) string {
 		}
 		if len(possiblePieceMoves) > 1 {
 			// Check for row ambiguity
-			possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
+			possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m *Move) bool {
 				return Int64toPositions(m.OldPiecePos)[0][1] == Int64toPositions(move.OldPiecePos)[0][1]
 			})
 		}
@@ -272,7 +272,7 @@ func (b Board) MoveToNotation(move Move) string {
 
 func (b Board) getMoveListInNotation() string {
 	// Means last position of the board, so it does not have a move
-	if b.MoveDone == (Move{}) {
+	if b.MoveDone == nil {
 		mateSuffix := ""
 		if b.IsMated() {
 			mateSuffix = "#"

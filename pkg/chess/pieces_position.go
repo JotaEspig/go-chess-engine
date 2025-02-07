@@ -24,8 +24,8 @@ func (pp PiecesPosition) Value() uint64 {
 	return count * multiplier
 }
 
-func (pp PiecesPosition) AllPossibleMoves(b Board) []Move {
-	var moves []Move
+func (pp PiecesPosition) AllPossibleMoves(b Board) []*Move {
+	var moves []*Move
 	movesFn := GetMovesFunction(pp.Type)
 	if movesFn == nil {
 		log.Fatal("Invalid piece type")

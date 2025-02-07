@@ -15,7 +15,7 @@ type Board struct {
 	Ctx   Context
 
 	// These 2 fields are used to keep track of the previous board state (i.e. every move made on board)
-	MoveDone  Move   // MoveDone is the move that was done in the current board
+	MoveDone  *Move  // MoveDone is the move that was done in the current board
 	PrevBoard *Board // PrevBoard is the previous board state
 }
 
@@ -164,7 +164,7 @@ func (b Board) IsValidPosition() bool {
 	return true
 }
 
-func (b Board) AllLegalMoves() []Move {
+func (b Board) AllLegalMoves() []*Move {
 	hashForMoves := b.HashForAllMoves()
 	if cachedMoves, ok := allLegalBoardMovesHashTable[hashForMoves]; ok {
 		return cachedMoves
@@ -172,13 +172,13 @@ func (b Board) AllLegalMoves() []Move {
 
 	moves := b.AllPossibleMoves()
 	// Filter out moves that are not legal
-	moves = utils.Filter(moves, func(m Move) bool {
+	moves = utils.Filter(moves, func(m *Move) bool {
 		newBoard := b.Copy()
 		return newBoard.MakeMove(m)
 	})
 	// Set IsCheck, IsCheckFieldSet and CapturedPieceType
-	utils.ForEach(moves, func(m *Move) {
-		m.isLegal = true
+	utils.ForEach(moves, func(m **Move) {
+		(*m).isLegal = true
 
 		var enemy PartialBoard
 		if b.Ctx.WhiteTurn {
@@ -189,25 +189,25 @@ func (b Board) AllLegalMoves() []Move {
 
 		// Set Capture Piece type
 		capturedPieceType := InvalidType
-		if m.IsCapture {
-			if m.NewPiecePos&enemy.Pawns.Board != 0 || m.NewPiecePos&b.Ctx.EnPassant != 0 {
+		if (*m).IsCapture {
+			if (*m).NewPiecePos&enemy.Pawns.Board != 0 || (*m).NewPiecePos&b.Ctx.EnPassant != 0 {
 				capturedPieceType = PawnType
-			} else if m.NewPiecePos&enemy.Knights.Board != 0 {
+			} else if (*m).NewPiecePos&enemy.Knights.Board != 0 {
 				capturedPieceType = KnightType
-			} else if m.NewPiecePos&enemy.Bishops.Board != 0 {
+			} else if (*m).NewPiecePos&enemy.Bishops.Board != 0 {
 				capturedPieceType = BishopType
-			} else if m.NewPiecePos&enemy.Rooks.Board != 0 {
+			} else if (*m).NewPiecePos&enemy.Rooks.Board != 0 {
 				capturedPieceType = RookType
-			} else if m.NewPiecePos&enemy.Queens.Board != 0 {
+			} else if (*m).NewPiecePos&enemy.Queens.Board != 0 {
 				capturedPieceType = QueenType
 			}
-			m.CapturedPieceType = capturedPieceType
+			(*m).CapturedPieceType = capturedPieceType
 		}
 
 		// Set IsCheck
 		b.MakeMove(*m)
 		if b.IsKingInCheck() {
-			m.IsCheck = true
+			(*m).IsCheck = true
 		}
 		b = *b.PrevBoard
 	})
@@ -216,7 +216,7 @@ func (b Board) AllLegalMoves() []Move {
 	return moves
 }
 
-func (b Board) AllPossibleMoves() []Move {
+func (b Board) AllPossibleMoves() []*Move {
 	var pb *PartialBoard
 	if b.Ctx.WhiteTurn {
 		pb = &b.White
@@ -232,7 +232,7 @@ func (b Board) AllPossibleMoves() []Move {
 	return moves
 }
 
-func (b Board) AllCastlingMoves() []Move {
+func (b Board) AllCastlingMoves() []*Move {
 	var pb PartialBoard
 	anyCastleAvailable := false
 	var kingSideSpaceMask uint64
@@ -256,19 +256,19 @@ func (b Board) AllCastlingMoves() []Move {
 	}
 
 	if !anyCastleAvailable {
-		return []Move{}
+		return []*Move{}
 	}
 
-	moves := make([]Move, 0)
+	moves := make([]*Move, 0)
 	allBoardMask := pb.AllBoardMask()
 	// king side is empty, can castle
 	if kingSideSpaceMask&allBoardMask == 0 {
-		move := Move{OldPiecePos: pb.King.Board, NewPiecePos: kingSideSafeSpot, IsCastling: true, PieceType: KingType}
+		move := &Move{OldPiecePos: pb.King.Board, NewPiecePos: kingSideSafeSpot, IsCastling: true, PieceType: KingType}
 		moves = append(moves, move)
 	}
 	// queen side is empty, can castle
 	if QueenSideSpaceMask&allBoardMask == 0 {
-		move := Move{OldPiecePos: pb.King.Board, NewPiecePos: queenSideSafeSpot, IsCastling: true, PieceType: KingType}
+		move := &Move{OldPiecePos: pb.King.Board, NewPiecePos: queenSideSafeSpot, IsCastling: true, PieceType: KingType}
 		moves = append(moves, move)
 	}
 	return moves
@@ -277,7 +277,7 @@ func (b Board) AllCastlingMoves() []Move {
 // MakeMove makes a move on the board.
 // This function does not treat draw positions by threesold repetition, You should check if before hand.
 // Returns true if it's a valid move, false otherwise.
-func (b *Board) MakeMove(m Move) bool {
+func (b *Board) MakeMove(m *Move) bool {
 	prevBoard := &Board{}
 	*prevBoard = b.Copy()
 
@@ -519,7 +519,7 @@ func (b *Board) IsKingInCheck() bool {
 	// Invert the color to get the enemy moves and see if it's possible to "capture" the king
 	b.Ctx.WhiteTurn = !b.Ctx.WhiteTurn
 	kingCaptureMoves := b.AllPossibleMoves()
-	kingCaptureMoves = utils.Filter(kingCaptureMoves, func(m Move) bool {
+	kingCaptureMoves = utils.Filter(kingCaptureMoves, func(m *Move) bool {
 		return m.PieceType != KingType && m.NewPiecePos&kingPos != 0
 	})
 	b.Ctx.WhiteTurn = !b.Ctx.WhiteTurn // Restore to the original value

@@ -10,7 +10,7 @@ var allPossibleBoardMovesHashTable = make(BoardMovesHashTable)
 
 type AllBoardMovesHash uint64
 
-type BoardMovesHashTable map[AllBoardMovesHash][]Move
+type BoardMovesHashTable map[AllBoardMovesHash][]*Move
 
 func (b Board) HashForAllMoves() AllBoardMovesHash {
 	h := fnv.New64()

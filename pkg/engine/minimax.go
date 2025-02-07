@@ -16,7 +16,7 @@ func minimax(board chess.Board, depth uint) (chess.Board, float64) {
 
 func alphaBetaMax(board chess.Board, alpha, beta float64, depth uint) (chess.Board, float64) {
 	if board.IsMated() || board.IsDraw() || depth == 0 {
-		board.MoveDone = chess.Move{}
+		board.MoveDone = nil
 		return board, EvaluatePosition(board)
 	}
 
@@ -25,7 +25,7 @@ func alphaBetaMax(board chess.Board, alpha, beta float64, depth uint) (chess.Boa
 	bestValue := -math.MaxFloat64
 	bestBoard := chess.Board{}
 	for _, move := range moves {
-		board.MoveDone = chess.Move{} // Resets
+		board.MoveDone = nil // Resets
 		board.MakeMove(move)
 		newBoard, val := alphaBetaMin(board, alpha, beta, depth-1)
 		board = *board.PrevBoard // Restore board

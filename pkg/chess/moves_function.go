@@ -3,10 +3,10 @@ package chess
 import "github.com/charmbracelet/log"
 
 // MovesFunction is a function that returns all possible new positions for a piece position in the complete Board.
-type MovesFunction func(Board, uint64) []Move
+type MovesFunction func(Board, uint64) []*Move
 
-func normalMoves(board Board, pieceBoard uint64, directions []int, pieceType PieceType) []Move {
-	moves := make([]Move, 0)
+func normalMoves(board Board, pieceBoard uint64, directions []int, pieceType PieceType) []*Move {
+	moves := make([]*Move, 0)
 	for _, direction := range directions {
 		fn := GetDirectionFunc(direction)
 		for i := 1; i < 8; i++ {
@@ -37,7 +37,7 @@ func normalMoves(board Board, pieceBoard uint64, directions []int, pieceType Pie
 
 			isCapture := newPieceBoard&invertedColor.AllBoardMask() != 0
 
-			move := Move{
+			move := &Move{
 				OldPiecePos: pieceBoard,
 				NewPiecePos: newPieceBoard,
 				IsCapture:   isCapture,
@@ -54,8 +54,8 @@ func normalMoves(board Board, pieceBoard uint64, directions []int, pieceType Pie
 	return moves
 }
 
-func knightMove(board Board, pieceBoard uint64, fn func(uint64) uint64) []Move {
-	moves := make([]Move, 0)
+func knightMove(board Board, pieceBoard uint64, fn func(uint64) uint64) []*Move {
+	moves := make([]*Move, 0)
 	newPieceBoard := fn(pieceBoard)
 	if newPieceBoard != 0 {
 		var color PartialBoard
@@ -71,7 +71,7 @@ func knightMove(board Board, pieceBoard uint64, fn func(uint64) uint64) []Move {
 		allColorBoard := color.AllBoardMask() & ^pieceBoard // Removes the piece from the board
 		if newPieceBoard&allColorBoard == 0 {
 			isCapture := newPieceBoard&invertedColor.AllBoardMask() != 0
-			move := Move{
+			move := &Move{
 				OldPiecePos: pieceBoard,
 				NewPiecePos: newPieceBoard,
 				IsCapture:   isCapture,
@@ -84,8 +84,8 @@ func knightMove(board Board, pieceBoard uint64, fn func(uint64) uint64) []Move {
 }
 
 // Includes En Passant and promotion
-func PawnMoves(board Board, pieceBoard uint64) []Move {
-	moves := make([]Move, 0)
+func PawnMoves(board Board, pieceBoard uint64) []*Move {
+	moves := make([]*Move, 0)
 
 	// Color configs
 	var dirFn func(uint64, int) uint64
@@ -128,7 +128,7 @@ func PawnMoves(board Board, pieceBoard uint64) []Move {
 	// If there's no collision
 	if newPieceBoard&allColorBoard == 0 {
 		isPromotion := isInPromotionRow(newPieceBoard)
-		move := Move{OldPiecePos: pieceBoard, NewPiecePos: newPieceBoard, IsPromotion: isPromotion, PieceType: PawnType}
+		move := &Move{OldPiecePos: pieceBoard, NewPiecePos: newPieceBoard, IsPromotion: isPromotion, PieceType: PawnType}
 		if !isPromotion {
 			moves = append(moves, move)
 		} else {
@@ -146,7 +146,7 @@ func PawnMoves(board Board, pieceBoard uint64) []Move {
 		if newPieceBoard != 0 {
 			newPieceBoard = dirFn(newPieceBoard, 1)
 			if newPieceBoard&allColorBoard == 0 {
-				move := Move{OldPiecePos: pieceBoard, NewPiecePos: newPieceBoard, PieceType: PawnType}
+				move := &Move{OldPiecePos: pieceBoard, NewPiecePos: newPieceBoard, PieceType: PawnType}
 				moves = append(moves, move)
 			}
 		}
@@ -162,7 +162,7 @@ func PawnMoves(board Board, pieceBoard uint64) []Move {
 		}
 
 		isPromotion := isInPromotionRow(capturePos)
-		move := Move{
+		move := &Move{
 			OldPiecePos: pieceBoard,
 			NewPiecePos: capturePos,
 			IsCapture:   true,
@@ -182,10 +182,9 @@ func PawnMoves(board Board, pieceBoard uint64) []Move {
 	return moves
 }
 
-func KnightMoves(board Board, pieceBoard uint64) []Move {
-	moves := make([]Move, 0)
+func KnightMoves(board Board, pieceBoard uint64) []*Move {
 
-	moves = append(moves, knightMove(board, pieceBoard, moveKnightL1)...)
+	moves := knightMove(board, pieceBoard, moveKnightL1)
 	moves = append(moves, knightMove(board, pieceBoard, moveKnightL2)...)
 	moves = append(moves, knightMove(board, pieceBoard, moveKnightL3)...)
 	moves = append(moves, knightMove(board, pieceBoard, moveKnightL4)...)
@@ -197,23 +196,23 @@ func KnightMoves(board Board, pieceBoard uint64) []Move {
 	return moves
 }
 
-func BishopMoves(board Board, pieceBoard uint64) []Move {
+func BishopMoves(board Board, pieceBoard uint64) []*Move {
 	directions := []int{directionUpLeft, directionUpRight, directionDownLeft, directionDownRight}
 	return normalMoves(board, pieceBoard, directions, BishopType)
 }
 
-func RookMoves(board Board, pieceBoard uint64) []Move {
+func RookMoves(board Board, pieceBoard uint64) []*Move {
 	directions := []int{directionUp, directionDown, directionLeft, directionRight}
 	return normalMoves(board, pieceBoard, directions, RookType)
 }
 
-func QueenMoves(board Board, pieceBoard uint64) []Move {
+func QueenMoves(board Board, pieceBoard uint64) []*Move {
 	directions := []int{directionUp, directionDown, directionLeft, directionRight, directionUpLeft, directionUpRight, directionDownLeft, directionDownRight}
 	return normalMoves(board, pieceBoard, directions, QueenType)
 }
 
-func KingMoves(board Board, pieceBoard uint64) []Move {
-	moves := make([]Move, 0)
+func KingMoves(board Board, pieceBoard uint64) []*Move {
+	moves := make([]*Move, 0)
 
 	directions := []int{directionUp, directionDown, directionLeft, directionRight, directionUpLeft, directionUpRight, directionDownLeft, directionDownRight}
 	for _, direction := range directions {
@@ -244,7 +243,7 @@ func KingMoves(board Board, pieceBoard uint64) []Move {
 		}
 
 		isCapture := newPieceBoard&invertedColor.AllBoardMask() != 0
-		move := Move{
+		move := &Move{
 			OldPiecePos: pieceBoard,
 			NewPiecePos: newPieceBoard,
 			IsCapture:   isCapture,

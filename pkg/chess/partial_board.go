@@ -23,9 +23,8 @@ func NewPartialBoard() PartialBoard {
 	}
 }
 
-func (pb PartialBoard) AllPossibleMoves(board Board) []Move {
-	moves := make([]Move, 0)
-	moves = append(moves, pb.Pawns.AllPossibleMoves(board)...)
+func (pb PartialBoard) AllPossibleMoves(board Board) []*Move {
+	moves := pb.Pawns.AllPossibleMoves(board)
 	moves = append(moves, pb.Knights.AllPossibleMoves(board)...)
 	moves = append(moves, pb.Bishops.AllPossibleMoves(board)...)
 	moves = append(moves, pb.Rooks.AllPossibleMoves(board)...)
@@ -34,7 +33,7 @@ func (pb PartialBoard) AllPossibleMoves(board Board) []Move {
 	return moves
 }
 
-func (pb *PartialBoard) MakeMove(m Move) {
+func (pb *PartialBoard) MakeMove(m *Move) {
 	var pp *PiecesPosition
 	switch m.PieceType {
 	case PawnType:
@@ -57,7 +56,7 @@ func (pb *PartialBoard) MakeMove(m Move) {
 	pp.Board |= m.NewPiecePos
 }
 
-func (pb *PartialBoard) MakePromotion(m Move) {
+func (pb *PartialBoard) MakePromotion(m *Move) {
 	var pp, pp2 *PiecesPosition
 	switch m.PieceType {
 	case PawnType:

@@ -36,8 +36,14 @@ func EvaluatePosition(board chess.Board) float64 {
 }
 
 func GetEngineLine(start, end *chess.Board) string {
+	// Means last position of the board, so it does not have a move
 	if end.MoveDone == (chess.Move{}) {
-		return GetEngineLine(start, end.PrevBoard)
+		mateSuffix := ""
+		if end.IsMated() {
+			mateSuffix = "#"
+		}
+		// If it is mate on this turn, so we need to add the suffix to the previous move
+		return GetEngineLine(start, end.PrevBoard) + mateSuffix
 	}
 
 	moveNotation := end.MoveToNotation(end.MoveDone)
@@ -51,9 +57,15 @@ func GetEngineLine(start, end *chess.Board) string {
 	}
 	prev := ""
 	if start.Hash() != end.Hash() {
-		prev = GetEngineLine(start, end.PrevBoard) + " "
+		checkSuffix := ""
+		if end.IsKingInCheck() {
+			checkSuffix = "+"
+		}
+		// If it is check on this turn, so we need to add the suffix to the previous move
+		prev = GetEngineLine(start, end.PrevBoard) + checkSuffix + " "
 	} else if !end.Ctx.WhiteTurn {
 		prev = "... "
 	}
+
 	return prev + moveNumberIfNeeded + moveNotation
 }

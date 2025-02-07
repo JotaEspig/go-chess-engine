@@ -271,8 +271,14 @@ func (b Board) MoveToNotation(move Move) string {
 }
 
 func (b Board) getMoveListInNotation() string {
+	// Means last position of the board, so it does not have a move
 	if b.MoveDone == (Move{}) {
-		return b.PrevBoard.getMoveListInNotation()
+		mateSuffix := ""
+		if b.IsMated() {
+			mateSuffix = "#"
+		}
+		// If it is mate on this turn, so we need to add the suffix to the previous move
+		return b.PrevBoard.getMoveListInNotation() + mateSuffix
 	}
 	moveNotation := b.MoveToNotation(b.MoveDone)
 	if b.PrevBoard == nil {
@@ -283,7 +289,13 @@ func (b Board) getMoveListInNotation() string {
 		moveNumberInt := b.Ctx.MoveNumber
 		moveNumberIfNeeded = strconv.Itoa(int(moveNumberInt)) + ". "
 	}
-	return b.PrevBoard.getMoveListInNotation() + " " + moveNumberIfNeeded + moveNotation
+
+	checkSuffix := ""
+	if b.IsKingInCheck() {
+		checkSuffix = "+"
+	}
+	// If it is check on this turn, so we need to add the suffix to the previous move
+	return b.PrevBoard.getMoveListInNotation() + checkSuffix + " " + moveNumberIfNeeded + moveNotation + checkSuffix
 }
 
 func (b Board) GetMoveListInNotation() string {

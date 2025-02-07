@@ -203,11 +203,11 @@ func (b Board) AllLegalMoves() []Move {
 		}
 
 		// Set IsCheck
-		copyBoard := b.Copy()
-		copyBoard.MakeMove(*m)
-		if copyBoard.IsKingInCheck() {
+		b.MakeMove(*m)
+		if b.IsKingInCheck() {
 			m.IsCheck = true
 		}
+		b = *b.PrevBoard
 	})
 
 	allLegalBoardMovesHashTable[hashForMoves] = moves
@@ -477,8 +477,8 @@ func (b *Board) IsMated() bool {
 	// Setting cached value
 	b.Ctx.IsMatedCacheSet = true
 
-	isKingInCheckOriginalPos := b.IsKingInCheck()
-	if !isKingInCheckOriginalPos {
+	isKingInCheck := b.IsKingInCheck()
+	if !isKingInCheck {
 		b.Ctx.IsMatedCache = false
 		return false
 	}

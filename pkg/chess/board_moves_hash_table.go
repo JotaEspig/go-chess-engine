@@ -6,14 +6,15 @@ import (
 )
 
 var allLegalBoardMovesHashTable = make(BoardMovesHashTable)
+var allPossibleBoardMovesHashTable = make(BoardMovesHashTable)
 
-type AllLegalBoardMovesHash uint64
+type AllBoardMovesHash uint64
 
-type BoardMovesHashTable map[AllLegalBoardMovesHash][]Move
+type BoardMovesHashTable map[AllBoardMovesHash][]Move
 
-func (b Board) HashForAllLegalMoves() AllLegalBoardMovesHash {
+func (b Board) HashForAllMoves() AllBoardMovesHash {
 	h := fnv.New64()
 	utils.HashUint64(h, uint64(b.Hash()))
 	utils.HashBool(h, b.Ctx.WhiteTurn)
-	return AllLegalBoardMovesHash(h.Sum64())
+	return AllBoardMovesHash(h.Sum64())
 }

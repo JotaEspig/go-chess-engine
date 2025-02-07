@@ -36,7 +36,13 @@ func normalMoves(board Board, pieceBoard uint64, directions []int, pieceType Pie
 			}
 
 			isCapture := newPieceBoard&invertedColor.AllBoardMask() != 0
-			move := Move{OldPiecePos: pieceBoard, NewPiecePos: newPieceBoard, IsCapture: isCapture, PieceType: pieceType}
+
+			move := Move{
+				OldPiecePos: pieceBoard,
+				NewPiecePos: newPieceBoard,
+				IsCapture:   isCapture,
+				PieceType:   pieceType,
+			}
 			moves = append(moves, move)
 			// Capture check
 			if isCapture {
@@ -65,7 +71,12 @@ func knightMove(board Board, pieceBoard uint64, fn func(uint64) uint64) []Move {
 		allColorBoard := color.AllBoardMask() & ^pieceBoard // Removes the piece from the board
 		if newPieceBoard&allColorBoard == 0 {
 			isCapture := newPieceBoard&invertedColor.AllBoardMask() != 0
-			move := Move{OldPiecePos: pieceBoard, NewPiecePos: newPieceBoard, IsCapture: isCapture, PieceType: KnightType}
+			move := Move{
+				OldPiecePos: pieceBoard,
+				NewPiecePos: newPieceBoard,
+				IsCapture:   isCapture,
+				PieceType:   KnightType,
+			}
 			moves = append(moves, move)
 		}
 	}
@@ -151,7 +162,13 @@ func PawnMoves(board Board, pieceBoard uint64) []Move {
 		}
 
 		isPromotion := isInPromotionRow(capturePos)
-		move := Move{OldPiecePos: pieceBoard, NewPiecePos: capturePos, IsCapture: true, IsPromotion: isPromotion, PieceType: PawnType}
+		move := Move{
+			OldPiecePos: pieceBoard,
+			NewPiecePos: capturePos,
+			IsCapture:   true,
+			IsPromotion: isPromotion,
+			PieceType:   PawnType,
+		}
 		if !isPromotion {
 			moves = append(moves, move)
 		} else {
@@ -227,7 +244,12 @@ func KingMoves(board Board, pieceBoard uint64) []Move {
 		}
 
 		isCapture := newPieceBoard&invertedColor.AllBoardMask() != 0
-		move := Move{OldPiecePos: pieceBoard, NewPiecePos: newPieceBoard, IsCapture: isCapture, PieceType: KingType}
+		move := Move{
+			OldPiecePos: pieceBoard,
+			NewPiecePos: newPieceBoard,
+			IsCapture:   isCapture,
+			PieceType:   KingType,
+		}
 		moves = append(moves, move)
 	}
 

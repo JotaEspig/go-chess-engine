@@ -12,6 +12,12 @@ func Filter[T any](s []T, f func(T) bool) []T {
 	return r
 }
 
+func ForEach[T any](s []T, f func(*T)) {
+	for i := range s {
+		f(&s[i])
+	}
+}
+
 func HashUint64(h hash.Hash64, value uint64) {
 	var buf [8]byte
 	for i := uint(0); i < 8; i++ {

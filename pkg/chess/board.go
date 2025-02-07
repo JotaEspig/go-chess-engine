@@ -165,7 +165,7 @@ func (b Board) IsValidPosition() bool {
 }
 
 func (b Board) AllLegalMoves() []Move {
-	hashForMoves := b.HashForAllLegalMoves()
+	hashForMoves := b.HashForAllMoves()
 	if cachedMoves, ok := allLegalBoardMovesHashTable[hashForMoves]; ok {
 		return cachedMoves
 	}
@@ -175,6 +175,39 @@ func (b Board) AllLegalMoves() []Move {
 	moves = utils.Filter(moves, func(m Move) bool {
 		newBoard := b.Copy()
 		return newBoard.MakeMove(m)
+	})
+	// Set IsCheck, IsCheckFieldSet and CapturedPieceType
+	utils.ForEach(moves, func(m *Move) {
+		var enemy PartialBoard
+		if b.Ctx.WhiteTurn {
+			enemy = b.Black
+		} else {
+			enemy = b.White
+		}
+
+		// Set Capture Piece type
+		capturedPieceType := InvalidType
+		if m.IsCapture {
+			if m.NewPiecePos&enemy.Pawns.Board != 0 || m.NewPiecePos&b.Ctx.EnPassant != 0 {
+				capturedPieceType = PawnType
+			} else if m.NewPiecePos&enemy.Knights.Board != 0 {
+				capturedPieceType = KnightType
+			} else if m.NewPiecePos&enemy.Bishops.Board != 0 {
+				capturedPieceType = BishopType
+			} else if m.NewPiecePos&enemy.Rooks.Board != 0 {
+				capturedPieceType = RookType
+			} else if m.NewPiecePos&enemy.Queens.Board != 0 {
+				capturedPieceType = QueenType
+			}
+			m.CapturedPieceType = capturedPieceType
+		}
+
+		// Set IsCheck
+		copyBoard := b.Copy()
+		copyBoard.MakeMove(*m)
+		if copyBoard.IsKingInCheck() {
+			m.IsCheck = true
+		}
 	})
 
 	allLegalBoardMovesHashTable[hashForMoves] = moves
@@ -472,34 +505,28 @@ func (b *Board) IsKingInCheck() bool {
 	b.Ctx.IsKingInCheckCacheSet = true
 
 	var kingPos uint64
-	var enemyPb *PartialBoard
-
 	isWhite := b.Ctx.WhiteTurn
 	if isWhite {
 		kingPos = b.White.King.Board
-		enemyPb = &b.Black
 	} else {
 		kingPos = b.Black.King.Board
-		enemyPb = &b.White
 	}
 
 	// Invert the color to get the enemy moves and see if it's possible to "capture" the king
 	b.Ctx.WhiteTurn = !b.Ctx.WhiteTurn
-	possibleCheckMoves := enemyPb.Pawns.AllPossibleMoves(*b)
-	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Knights.AllPossibleMoves(*b)...)
-	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Bishops.AllPossibleMoves(*b)...)
-	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Rooks.AllPossibleMoves(*b)...)
-	possibleCheckMoves = append(possibleCheckMoves, enemyPb.Queens.AllPossibleMoves(*b)...)
+	kingCaptureMoves := b.AllPossibleMoves()
+	kingCaptureMoves = utils.Filter(kingCaptureMoves, func(m Move) bool {
+		return m.PieceType != KingType && m.NewPiecePos&kingPos != 0
+	})
 	b.Ctx.WhiteTurn = !b.Ctx.WhiteTurn // Restore to the original value
 
-	for _, move := range possibleCheckMoves {
-		if move.NewPiecePos == kingPos {
-			b.Ctx.IsKingInCheckCache = true
-			return true
-		}
+	if len(kingCaptureMoves) > 0 {
+		b.Ctx.IsKingInCheckCache = true
+		return true
+	} else {
+		b.Ctx.IsKingInCheckCache = false
+		return false
 	}
-	b.Ctx.IsKingInCheckCache = false
-	return false
 }
 
 func (b *Board) IsDraw() bool {

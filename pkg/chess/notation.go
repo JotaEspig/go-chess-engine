@@ -262,7 +262,7 @@ func (b Board) MoveToNotation(move Move) string {
 	dest := Int64toPositions(move.NewPiecePos)[0]
 	destCol, destRow := dest[0], dest[1]
 	// if it's a pawn move and not a capture, then the column was already added
-	if move.PieceType != PawnType && !move.IsCapture {
+	if move.PieceType != PawnType || move.IsCapture { // De morgan baby
 		notation += string(rune('a' + destCol))
 	}
 	notation += string(rune('1' + destRow))

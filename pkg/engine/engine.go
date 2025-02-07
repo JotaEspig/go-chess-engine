@@ -2,10 +2,11 @@ package engine
 
 import (
 	"gce/pkg/chess"
+	"strconv"
 )
 
 // AnalysisByDepth returns the evaluation of the board by analyzing it to a certain depth.
-func AnalysisByDepth(board chess.Board, depth uint) float64 {
+func AnalysisByDepth(board chess.Board, depth uint) (chess.Board, float64) {
 	return minimax(board, depth)
 }
 
@@ -32,4 +33,27 @@ func EvaluatePosition(board chess.Board) float64 {
 	}
 
 	return evaluation
+}
+
+func GetEngineLine(start, end *chess.Board) string {
+	if end.MoveDone == (chess.Move{}) {
+		return GetEngineLine(start, end.PrevBoard)
+	}
+
+	moveNotation := end.MoveToNotation(end.MoveDone)
+	if end.PrevBoard == nil {
+		return "1. " + moveNotation
+	}
+	moveNumberIfNeeded := ""
+	if end.Ctx.WhiteTurn {
+		moveNumberInt := end.Ctx.MoveNumber
+		moveNumberIfNeeded = strconv.Itoa(int(moveNumberInt)) + ". "
+	}
+	prev := ""
+	if start.Hash() != end.Hash() {
+		prev = GetEngineLine(start, end.PrevBoard) + " "
+	} else if !end.Ctx.WhiteTurn {
+		prev = "... "
+	}
+	return prev + moveNumberIfNeeded + moveNotation
 }

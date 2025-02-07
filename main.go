@@ -6,6 +6,7 @@ import (
 	"gce/pkg/engine"
 	"net/http"
 	_ "net/http/pprof"
+	"sort"
 	"strings"
 )
 
@@ -28,18 +29,27 @@ func main() {
 			break
 		}
 
-		var moveNot string
+		var moveNotation string
 		fmt.Print("Move: ")
-		fmt.Scanln(&moveNot)
-		if strings.TrimSpace(moveNot) == "q" {
+		fmt.Scanln(&moveNotation)
+		moveNotation = strings.TrimSpace(moveNotation)
+		if moveNotation == "q" {
 			break
-		} else if strings.TrimSpace(moveNot) == "eval" {
-			evaluation := engine.AnalysisByDepth(*b, 4)
+		} else if moveNotation == "eval" {
+			bestBoard, evaluation := engine.AnalysisByDepth(*b, 5)
 			fmt.Printf("Evaluation: %.2f\n", evaluation)
+			fmt.Println(engine.GetEngineLine(b, &bestBoard))
+			continue
+		} else if moveNotation == "list" {
+			allLegalMoves := engine.MoveSlice(b.AllLegalMoves())
+			sort.Sort(allLegalMoves)
+			for _, move := range allLegalMoves {
+				fmt.Printf("%d -> %s\n", engine.MoveSortingScore(move), move.String())
+			}
 			continue
 		}
 
-		move, err := b.ParseMove(moveNot)
+		move, err := b.ParseMove(moveNotation)
 		if err != nil {
 			fmt.Println("Invalid move")
 			continue

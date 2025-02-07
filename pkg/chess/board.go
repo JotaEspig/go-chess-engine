@@ -178,6 +178,8 @@ func (b Board) AllLegalMoves() []Move {
 	})
 	// Set IsCheck, IsCheckFieldSet and CapturedPieceType
 	utils.ForEach(moves, func(m *Move) {
+		m.isLegal = true
+
 		var enemy PartialBoard
 		if b.Ctx.WhiteTurn {
 			enemy = b.Black
@@ -322,6 +324,7 @@ func (b *Board) MakeMove(m Move) bool {
 		isKingSide := m.NewPiecePos < m.OldPiecePos
 		copyBoard := *b
 		copyMove := m
+		copyMove.isLegal = false
 		copyMove.IsCastling = false
 		// King side
 		if isKingSide {
@@ -459,11 +462,12 @@ func (b *Board) MakeMove(m Move) bool {
 
 	// Check if it's a valid position
 	// Should be the last thing to do (besides setting the previous board)
-	if !b.IsValidPosition() {
-		// Restore to the previous board
+	// Takes advantage of boolean short-circuit evaluation
+	if !m.isLegal && !b.IsValidPosition() {
 		*b = *prevBoard
 		return false
 	}
+
 	prevBoard.MoveDone = m
 	b.PrevBoard = prevBoard
 	return true

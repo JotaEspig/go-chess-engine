@@ -14,9 +14,9 @@ func AnalysisByDepth(board chess.Board, depth uint) (chess.Board, float64) {
 func EvaluatePosition(board chess.Board) float64 {
 	if board.IsMated() {
 		if board.Ctx.WhiteTurn {
-			return 10000
-		} else {
 			return -10000
+		} else {
+			return 10000
 		}
 	} else if board.IsDraw() {
 		return 0

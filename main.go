@@ -16,7 +16,7 @@ func main() {
 		http.ListenAndServe("localhost:6060", nil)
 	}()
 
-	b := chess.NewDefaultBoard()
+	b := chess.FenToBoard("rn1qkbnr/1pp2ppp/p2p4/4N3/2B1P3/2N5/PPPP1PPP/R1BbK2R w KQkq - 0 6")
 	for {
 		vb := b.VisualBoard()
 		fmt.Println(vb.String())

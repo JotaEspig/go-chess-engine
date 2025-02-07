@@ -14,6 +14,7 @@ type Move struct {
 	NewPieceType      PieceType
 	CapturedPieceType PieceType
 	IsCheckFieldSet   bool
+	isLegal           bool // Setted by AllLegalMoves
 }
 
 func (m Move) Is2SquarePawnMove() bool {

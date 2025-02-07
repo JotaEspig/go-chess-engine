@@ -16,7 +16,7 @@ func main() {
 		http.ListenAndServe("localhost:6060", nil)
 	}()
 
-	b := chess.FenToBoard("rn1qkbnr/1pp2ppp/p2p4/4N3/2B1P3/2N5/PPPP1PPP/R1BbK2R w KQkq - 0 6")
+	b := chess.NewDefaultBoard()
 	for {
 		vb := b.VisualBoard()
 		fmt.Println(vb.String())
@@ -35,8 +35,15 @@ func main() {
 		moveNotation = strings.TrimSpace(moveNotation)
 		if moveNotation == "q" {
 			break
+		} else if moveNotation == "move" {
+			bestBoard, _ := engine.AnalysisByDepth(*b, 5)
+			move, moveNotation := engine.GetEngineMove(*b, bestBoard)
+			fmt.Println(moveNotation)
+			b.MakeMove(move)
+			continue
 		} else if moveNotation == "eval" {
-			bestBoard, evaluation := engine.AnalysisByDepth(*b, 5)
+			startBoard := b.Copy()
+			bestBoard, evaluation := engine.AnalysisByDepth(startBoard, 5)
 			fmt.Printf("Evaluation: %.2f\n", evaluation)
 			fmt.Println(engine.GetEngineLine(b, &bestBoard))
 			continue

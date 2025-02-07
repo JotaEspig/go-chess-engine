@@ -35,6 +35,17 @@ func EvaluatePosition(board chess.Board) float64 {
 	return evaluation
 }
 
+func GetEngineMove(start, end chess.Board) (chess.Move, string) {
+	if end.MoveDone == (chess.Move{}) {
+		return GetEngineMove(start, *end.PrevBoard)
+	}
+
+	if start.Hash() == end.Hash() {
+		return end.MoveDone, end.MoveToNotation(end.MoveDone)
+	}
+	return GetEngineMove(start, *end.PrevBoard)
+}
+
 func GetEngineLine(start, end *chess.Board) string {
 	// Means last position of the board, so it does not have a move
 	if end.MoveDone == (chess.Move{}) {

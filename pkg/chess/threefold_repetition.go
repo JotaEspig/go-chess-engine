@@ -11,7 +11,7 @@ type BoardHash uint64
 type ThreefoldRepetitionHashTable map[BoardHash]int
 
 func (trht ThreefoldRepetitionHashTable) Copy() ThreefoldRepetitionHashTable {
-	newMap := make(ThreefoldRepetitionHashTable)
+	newMap := make(ThreefoldRepetitionHashTable, len(trht))
 	for k, v := range trht {
 		newMap[k] = v
 	}

@@ -3,6 +3,7 @@ package chess
 import (
 	"fmt"
 	"log"
+	"math/bits"
 )
 
 func Bla() {
@@ -24,10 +25,10 @@ func Int64toPositions(i uint64) [][2]int {
 	// The row is the bit index divided by 8.
 	// The column is the bit index modulo 8.
 	var positions [][2]int
-	for j := 0; j < 64; j++ {
-		if i&(1<<uint(j)) != 0 {
-			positions = append(positions, [2]int{7 - j%8, j / 8})
-		}
+	for i != 0 {
+		j := bits.TrailingZeros64(i)
+		positions = append(positions, [2]int{7 - j%8, j / 8})
+		i &= i - 1
 	}
 	return positions
 }

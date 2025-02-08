@@ -6,7 +6,7 @@ import "github.com/charmbracelet/log"
 type MovesFunction func(Board, uint64) []*Move
 
 func normalMoves(board Board, pieceBoard uint64, directions []int, pieceType PieceType) []*Move {
-	moves := make([]*Move, 0)
+	moves := make([]*Move, 0, 14)
 	for _, direction := range directions {
 		fn := GetDirectionFunc(direction)
 		for i := 1; i < 8; i++ {
@@ -55,7 +55,7 @@ func normalMoves(board Board, pieceBoard uint64, directions []int, pieceType Pie
 }
 
 func knightMove(board Board, pieceBoard uint64, fn func(uint64) uint64) []*Move {
-	moves := make([]*Move, 0)
+	moves := make([]*Move, 0, 1)
 	newPieceBoard := fn(pieceBoard)
 	if newPieceBoard != 0 {
 		var color PartialBoard
@@ -85,7 +85,7 @@ func knightMove(board Board, pieceBoard uint64, fn func(uint64) uint64) []*Move 
 
 // Includes En Passant and promotion
 func PawnMoves(board Board, pieceBoard uint64) []*Move {
-	moves := make([]*Move, 0)
+	moves := make([]*Move, 0, 8)
 
 	// Color configs
 	var dirFn func(uint64, int) uint64
@@ -183,8 +183,8 @@ func PawnMoves(board Board, pieceBoard uint64) []*Move {
 }
 
 func KnightMoves(board Board, pieceBoard uint64) []*Move {
-
-	moves := knightMove(board, pieceBoard, moveKnightL1)
+	moves := make([]*Move, 0, 8)
+	moves = append(moves, knightMove(board, pieceBoard, moveKnightL1)...)
 	moves = append(moves, knightMove(board, pieceBoard, moveKnightL2)...)
 	moves = append(moves, knightMove(board, pieceBoard, moveKnightL3)...)
 	moves = append(moves, knightMove(board, pieceBoard, moveKnightL4)...)
@@ -212,7 +212,7 @@ func QueenMoves(board Board, pieceBoard uint64) []*Move {
 }
 
 func KingMoves(board Board, pieceBoard uint64) []*Move {
-	moves := make([]*Move, 0)
+	moves := make([]*Move, 0, 8)
 
 	directions := []int{directionUp, directionDown, directionLeft, directionRight, directionUpLeft, directionUpRight, directionDownLeft, directionDownRight}
 	for _, direction := range directions {

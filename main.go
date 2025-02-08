@@ -17,6 +17,7 @@ func main() {
 	}()
 
 	b := chess.NewDefaultBoard()
+	// b := chess.FenToBoard("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")
 	for {
 		vb := b.VisualBoard()
 		fmt.Println(vb.String())
@@ -36,16 +37,31 @@ func main() {
 		if moveNotation == "q" {
 			break
 		} else if moveNotation == "move" {
-			bestBoard, _ := engine.AnalysisByDepth(*b, 5)
-			move, moveNotation := engine.GetEngineMove(*b, bestBoard)
+			copyBoard := b.Copy()
+			returnCh := make(chan engine.AnalysisReport)
+			nodesCountch := make(chan struct{})
+
+			analysisReport := engine.AnalysisByDepth(copyBoard, 5, returnCh, nodesCountch)
+			bestBoard := analysisReport.BestBoard
+			move, moveNotation := engine.GetEngineMove(copyBoard, bestBoard)
 			fmt.Println(moveNotation)
 			b.MakeMove(move)
+
+			close(returnCh)
+			close(nodesCountch)
 			continue
 		} else if moveNotation == "eval" {
-			startBoard := b.Copy()
-			bestBoard, evaluation := engine.AnalysisByDepth(startBoard, 5)
+			copyBoard := b.Copy()
+			returnCh := make(chan engine.AnalysisReport)
+			nodesCountch := make(chan struct{})
+
+			analysisReport := engine.AnalysisByDepth(copyBoard, 5, returnCh, nodesCountch)
+			bestBoard, evaluation := analysisReport.BestBoard, analysisReport.Evaluation
 			fmt.Printf("Evaluation: %.2f\n", evaluation)
-			fmt.Println(engine.GetEngineLine(b, &bestBoard))
+			fmt.Println(engine.GetEngineLine(&copyBoard, &bestBoard))
+
+			close(returnCh)
+			close(nodesCountch)
 			continue
 		} else if moveNotation == "list" {
 			allLegalMoves := engine.MoveSlice(b.AllLegalMoves())

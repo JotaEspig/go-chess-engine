@@ -6,15 +6,19 @@ import (
 	"sort"
 )
 
-func minimax(board chess.Board, depth uint) (chess.Board, float64) {
+func minimax(board chess.Board, depth uint, returnCh chan AnalysisReport, nodesCountch chan struct{}) {
+	var analysisReport AnalysisReport
 	if board.Ctx.WhiteTurn {
-		return alphaBetaMax(board, -math.MaxFloat64, math.MaxFloat64, depth)
+		bestBoard, eval := alphaBetaMax(board, -math.MaxFloat64, math.MaxFloat64, depth, nodesCountch)
+		analysisReport = AnalysisReport{BestBoard: bestBoard, Evaluation: eval}
 	} else {
-		return alphaBetaMin(board, -math.MaxFloat64, math.MaxFloat64, depth)
+		bestBoard, eval := alphaBetaMin(board, -math.MaxFloat64, math.MaxFloat64, depth, nodesCountch)
+		analysisReport = AnalysisReport{BestBoard: bestBoard, Evaluation: eval}
 	}
+	returnCh <- analysisReport
 }
 
-func alphaBetaMax(board chess.Board, alpha, beta float64, depth uint) (chess.Board, float64) {
+func alphaBetaMax(board chess.Board, alpha, beta float64, depth uint, nodesCount chan struct{}) (chess.Board, float64) {
 	if board.IsMated() || board.IsDraw() || depth == 0 {
 		board.MoveDone = nil
 		return board, EvaluatePosition(board)
@@ -25,9 +29,10 @@ func alphaBetaMax(board chess.Board, alpha, beta float64, depth uint) (chess.Boa
 	bestValue := -math.MaxFloat64
 	bestBoard := chess.Board{}
 	for _, move := range moves {
-		board.MoveDone = nil // Resets
+		nodesCount <- struct{}{} // Increment nodes count
+		board.MoveDone = nil     // Resets
 		board.MakeMove(move)
-		newBoard, val := alphaBetaMin(board, alpha, beta, depth-1)
+		newBoard, val := alphaBetaMin(board, alpha, beta, depth-1, nodesCount)
 		board = *board.PrevBoard // Restore board
 		if val > bestValue {
 			bestValue = val
@@ -43,7 +48,7 @@ func alphaBetaMax(board chess.Board, alpha, beta float64, depth uint) (chess.Boa
 	return bestBoard, bestValue
 }
 
-func alphaBetaMin(board chess.Board, alpha, beta float64, depth uint) (chess.Board, float64) {
+func alphaBetaMin(board chess.Board, alpha, beta float64, depth uint, nodesCount chan struct{}) (chess.Board, float64) {
 	if board.IsMated() || board.IsDraw() || depth == 0 {
 		return board, EvaluatePosition(board)
 	}
@@ -53,8 +58,10 @@ func alphaBetaMin(board chess.Board, alpha, beta float64, depth uint) (chess.Boa
 	bestValue := math.MaxFloat64
 	bestBoard := chess.Board{}
 	for _, move := range moves {
+		nodesCount <- struct{}{} // Increment nodes count
+		board.MoveDone = nil     // Resets
 		board.MakeMove(move)
-		newBoard, val := alphaBetaMax(board, alpha, beta, depth-1)
+		newBoard, val := alphaBetaMax(board, alpha, beta, depth-1, nodesCount)
 		board = *board.PrevBoard // Restore board
 		if val < bestValue {
 			bestValue = val

@@ -1,6 +1,10 @@
 package chess
 
-import "github.com/charmbracelet/log"
+import (
+	"math/bits"
+
+	"github.com/charmbracelet/log"
+)
 
 // PiecesPosition is a bitboard representing the positions of pieces of a single type on the board.
 // Each PiecesPosition corresponds to a specific type of piece.
@@ -15,11 +19,7 @@ func (pp PiecesPosition) Value() uint64 {
 
 	// Count the number of bits set in the bitboard.
 	// This is the number of pieces of this type on the board.
-	var count uint64 = 0
-	for pp.Board != 0 {
-		count += pp.Board & 1
-		pp.Board >>= 1
-	}
+	count := uint64(bits.OnesCount64(pp.Board))
 	// Multiply the number of pieces by the value of the piece.
 	return count * multiplier
 }
@@ -31,12 +31,12 @@ func (pp PiecesPosition) AllPossibleMoves(b Board) []*Move {
 		log.Fatal("Invalid piece type")
 	}
 
-	for i := 0; i < 64; i++ {
-		// if != 0, there is a piece at this position.
-		if pp.Board&(1<<uint(i)) != 0 {
-			newMoves := movesFn(b, 1<<uint(i))
-			moves = append(moves, newMoves...)
-		}
+	bitboard := pp.Board
+	for bitboard != 0 {
+		i := bits.TrailingZeros64(bitboard)
+		newMoves := movesFn(b, 1<<i)
+		moves = append(moves, newMoves...)
+		bitboard &= bitboard - 1 // Removes the LSB
 	}
 	return moves
 }

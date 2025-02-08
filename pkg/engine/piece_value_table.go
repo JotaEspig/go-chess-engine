@@ -1,6 +1,9 @@
 package engine
 
-import "gce/pkg/chess"
+import (
+	"gce/pkg/chess"
+	"math/bits"
+)
 
 var whitePawnTable = [64]float64{
 	0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -109,10 +112,10 @@ func pieceTypeTableValue(piecesPosition uint64, pieceType chess.PieceType, isWhi
 	}
 
 	var value float64
-	for i := 0; i < 64; i++ {
-		if (piecesPosition>>uint(i))&1 == 1 {
-			value += table[i]
-		}
+	for piecesPosition != 0 {
+		i := bits.TrailingZeros64(piecesPosition)
+		value += table[i]
+		piecesPosition &= piecesPosition - 1 // Removes the LSB
 	}
 	if !isWhite {
 		value = -value

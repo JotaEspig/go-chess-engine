@@ -17,21 +17,37 @@ func rjust(s, fill string, width int) string {
 }
 
 // AnalysisByDepth returns the evaluation of the board by analyzing it to a certain depth.
-func AnalysisByDepth(board chess.Board, depth uint, returnCh chan AnalysisReport, nodesCountch chan struct{}) AnalysisReport {
+func AnalysisByDepth(board chess.Board, depth uint, returnCh chan AnalysisReport, nodesCountch chan chess.Move) AnalysisReport {
 	go minimax(board, depth, returnCh, nodesCountch)
 	nodes := 0
+	captures := 0
+	checks := 0
+	promotions := 0
 	startTime := time.Now()
 	for {
 		diffToStart := time.Now().Sub(startTime)
 		select {
-		case <-nodesCountch:
+		case move := <-nodesCountch:
 			nodes++
+			if move.IsCapture {
+				captures++
+			}
+			if move.IsCheck {
+				checks++
+			}
+			if move.IsPromotion {
+				promotions++
+			}
+
 			toPrint := fmt.Sprintf("%.2f", float64(nodes)/diffToStart.Seconds())
 			toPrint = rjust(toPrint, " ", 10)
 			fmt.Printf("\rNodes per second: %s", toPrint)
 		case analysisReport := <-returnCh:
 			fmt.Println()
 			log.Infof("Total amount of nodes: %d", nodes)
+			log.Infof("Total amount of captures: %d", captures)
+			log.Infof("Total amount of checks: %d", checks)
+			log.Infof("Total amount of promotions: %d", promotions)
 			log.Infof("Total time: %s", time.Now().Sub(startTime))
 			return analysisReport
 		}

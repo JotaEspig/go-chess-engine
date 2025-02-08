@@ -1,23 +1,39 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"gce/pkg/chess"
 	"gce/pkg/engine"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"sort"
 	"strings"
 )
 
 func main() {
 	go func() {
-		fmt.Println("Starting pprof server")
 		http.ListenAndServe("localhost:6060", nil)
 	}()
 
-	b := chess.NewDefaultBoard()
-	// b := chess.FenToBoard("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")
+	var depth uint
+	fmt.Print("Depth: ")
+	fmt.Scanln(&depth)
+
+	var fen string
+	fmt.Print("FEN: ")
+	// Read entire line not using Scanln
+	reader := bufio.NewReader(os.Stdin)
+	fen, _ = reader.ReadString('\n')
+	fen = strings.ReplaceAll(fen, "\n", "")
+	fen = strings.ReplaceAll(fen, "\r", "")
+	fen = strings.TrimSpace(fen)
+	if fen == "" {
+		fen = chess.DefaultStartFen
+	}
+
+	b := chess.FenToBoard(fen)
 	for {
 		vb := b.VisualBoard()
 		fmt.Println(vb.String())
@@ -39,9 +55,9 @@ func main() {
 		} else if moveNotation == "move" {
 			copyBoard := b.Copy()
 			returnCh := make(chan engine.AnalysisReport)
-			nodesCountch := make(chan struct{})
+			nodesCountch := make(chan chess.Move)
 
-			analysisReport := engine.AnalysisByDepth(copyBoard, 5, returnCh, nodesCountch)
+			analysisReport := engine.AnalysisByDepth(copyBoard, depth, returnCh, nodesCountch)
 			bestBoard := analysisReport.BestBoard
 			move, moveNotation := engine.GetEngineMove(copyBoard, bestBoard)
 			fmt.Println(moveNotation)
@@ -53,9 +69,9 @@ func main() {
 		} else if moveNotation == "eval" {
 			copyBoard := b.Copy()
 			returnCh := make(chan engine.AnalysisReport)
-			nodesCountch := make(chan struct{})
+			nodesCountch := make(chan chess.Move)
 
-			analysisReport := engine.AnalysisByDepth(copyBoard, 5, returnCh, nodesCountch)
+			analysisReport := engine.AnalysisByDepth(copyBoard, depth, returnCh, nodesCountch)
 			bestBoard, evaluation := analysisReport.BestBoard, analysisReport.Evaluation
 			fmt.Printf("Evaluation: %.2f\n", evaluation)
 			fmt.Println(engine.GetEngineLine(&copyBoard, &bestBoard))

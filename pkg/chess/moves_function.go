@@ -6,7 +6,7 @@ import "github.com/charmbracelet/log"
 type MovesFunction func(Board, uint64) []*Move
 
 func normalMoves(board Board, pieceBoard uint64, directions []int, pieceType PieceType) []*Move {
-	moves := make([]*Move, 0, 14)
+	moves := make([]*Move, 0, len(directions)*7)
 	for _, direction := range directions {
 		fn := GetDirectionFunc(direction)
 		for i := 1; i < 8; i++ {

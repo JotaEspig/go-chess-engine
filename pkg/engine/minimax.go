@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-func minimax(board chess.Board, depth uint, returnCh chan AnalysisReport, nodesCountch chan chess.Move) {
+func minimax(board *chess.Board, depth uint, returnCh chan AnalysisReport, nodesCountch chan struct{}) {
 	var analysisReport AnalysisReport
 	if board.Ctx.WhiteTurn {
 		analysisReport = alphaBetaMax(board, -math.MaxFloat64, math.MaxFloat64, depth, nodesCountch)
@@ -16,15 +16,10 @@ func minimax(board chess.Board, depth uint, returnCh chan AnalysisReport, nodesC
 	returnCh <- analysisReport
 }
 
-func alphaBetaMax(board chess.Board, alpha, beta float64, depth uint, nodesCount chan chess.Move) AnalysisReport {
-	if entry, ok := transpositionalTable[board.HashBoardWithContext()]; ok {
-		return entry
-	}
-
+func alphaBetaMax(board *chess.Board, alpha, beta float64, depth uint, nodesCount chan struct{}) AnalysisReport {
 	if board.IsMated() || board.IsDraw() || depth == 0 {
-		nodesCount <- *board.PrevBoard.MoveDone // Increment nodes count
-		report := AnalysisReport{board, EvaluatePosition(board)}
-		transpositionalTable[board.HashBoardWithContext()] = report
+		nodesCount <- struct{}{} // Increment nodes count
+		report := AnalysisReport{*board, EvaluatePosition(*board), []chess.Move{}}
 		return report
 	}
 
@@ -33,33 +28,30 @@ func alphaBetaMax(board chess.Board, alpha, beta float64, depth uint, nodesCount
 	bestReport := AnalysisReport{
 		Evaluation: -math.MaxFloat64,
 	}
+	bestMove := chess.Move{} // Used for saving engine line
 	for _, move := range moves {
-		board.MoveDone = nil // Resets
-		board.MakeMove(move)
+		board.MakeLegalMove(move)
 		report := alphaBetaMin(board, alpha, beta, depth-1, nodesCount)
-		board = *board.PrevBoard // Restore board
+		board.UndoMove()
 		if report.Evaluation > bestReport.Evaluation {
 			bestReport = report
+			bestMove = move
 			if report.Evaluation > alpha {
 				alpha = report.Evaluation
 			}
 		}
 		if report.Evaluation >= beta {
-			return AnalysisReport{board, report.Evaluation}
+			return AnalysisReport{*board, report.Evaluation, []chess.Move{}}
 		}
 	}
+	bestReport.Moves = append([]chess.Move{bestMove}, bestReport.Moves...) // Inserts at the begginning
 	return bestReport
 }
 
-func alphaBetaMin(board chess.Board, alpha, beta float64, depth uint, nodesCount chan chess.Move) AnalysisReport {
-	if entry, ok := transpositionalTable[board.HashBoardWithContext()]; ok {
-		return entry
-	}
-
+func alphaBetaMin(board *chess.Board, alpha, beta float64, depth uint, nodesCount chan struct{}) AnalysisReport {
 	if board.IsMated() || board.IsDraw() || depth == 0 {
-		nodesCount <- *board.PrevBoard.MoveDone // Increment nodes count
-		report := AnalysisReport{board, EvaluatePosition(board)}
-		transpositionalTable[board.HashBoardWithContext()] = report
+		nodesCount <- struct{}{} // Increment nodes count
+		report := AnalysisReport{*board, EvaluatePosition(*board), []chess.Move{}}
 		return report
 	}
 
@@ -68,20 +60,22 @@ func alphaBetaMin(board chess.Board, alpha, beta float64, depth uint, nodesCount
 	bestReport := AnalysisReport{
 		Evaluation: math.MaxFloat64,
 	}
+	bestMove := chess.Move{} // Used for saving engine line
 	for _, move := range moves {
-		board.MoveDone = nil // Resets
-		board.MakeMove(move)
+		board.MakeLegalMove(move)
 		report := alphaBetaMax(board, alpha, beta, depth-1, nodesCount)
-		board = *board.PrevBoard // Restore board
+		board.UndoMove()
 		if report.Evaluation < bestReport.Evaluation {
 			bestReport = report
+			bestMove = move
 			if report.Evaluation < beta {
 				beta = report.Evaluation
 			}
 		}
 		if report.Evaluation <= alpha {
-			return AnalysisReport{board, report.Evaluation}
+			return AnalysisReport{*board, report.Evaluation, []chess.Move{}}
 		}
 	}
+	bestReport.Moves = append([]chess.Move{bestMove}, bestReport.Moves...) // Inserts at the begginning
 	return bestReport
 }

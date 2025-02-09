@@ -83,7 +83,10 @@ func (vb VisualBoard) String() string {
 			sb.WriteString("| " + str + " ")
 		}
 		sb.WriteString("|\n-")
-		sb.WriteString(strings.Repeat("----", 8) + "\n")
+		sb.WriteString(strings.Repeat("----", 8))
+		if i != 0 {
+			sb.WriteString("\n")
+		}
 	}
 	return sb.String()
 }

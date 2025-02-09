@@ -26,12 +26,5 @@ type Context struct {
 	EnPassant              uint64
 	HalfMoves              uint
 	MoveNumber             uint
-	ThreesoldRepetition    ThreefoldRepetitionHashTable
 	Result                 uint
-}
-
-func (c Context) Copy() Context {
-	newCtx := c
-	newCtx.ThreesoldRepetition = c.ThreesoldRepetition.Copy()
-	return newCtx
 }

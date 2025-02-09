@@ -10,6 +10,7 @@ type Move struct {
 	IsCapture         bool
 	IsPromotion       bool
 	IsCheck           bool
+	IsEnPassant       bool
 	PieceType         PieceType
 	NewPieceType      PieceType
 	CapturedPieceType PieceType

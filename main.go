@@ -34,6 +34,7 @@ func main() {
 	}
 
 	b := chess.FenToBoard(fen)
+	// fmt.Println(engine.Perft(b, depth))
 	for {
 		vb := b.VisualBoard()
 		fmt.Println(vb.String())
@@ -52,29 +53,18 @@ func main() {
 		moveNotation = strings.TrimSpace(moveNotation)
 		if moveNotation == "q" {
 			break
-		} else if moveNotation == "move" {
-			copyBoard := b.Copy()
-			returnCh := make(chan engine.AnalysisReport)
-			nodesCountch := make(chan chess.Move)
-
-			analysisReport := engine.AnalysisByDepth(copyBoard, depth, returnCh, nodesCountch)
-			bestBoard := analysisReport.BestBoard
-			move, moveNotation := engine.GetEngineMove(copyBoard, bestBoard)
-			fmt.Println(moveNotation)
-			b.MakeMove(move)
-
-			close(returnCh)
-			close(nodesCountch)
-			continue
 		} else if moveNotation == "eval" {
-			copyBoard := b.Copy()
 			returnCh := make(chan engine.AnalysisReport)
-			nodesCountch := make(chan chess.Move)
+			nodesCountch := make(chan struct{})
 
-			analysisReport := engine.AnalysisByDepth(copyBoard, depth, returnCh, nodesCountch)
+			analysisReport := engine.AnalysisByDepth(b, depth, returnCh, nodesCountch)
 			bestBoard, evaluation := analysisReport.BestBoard, analysisReport.Evaluation
+			fmt.Println("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
 			fmt.Printf("Evaluation: %.2f\n", evaluation)
-			fmt.Println(engine.GetEngineLine(&copyBoard, &bestBoard))
+			fmt.Println(analysisReport.GetEngineLine())
+			fmt.Println("Final position after engine line:")
+			fmt.Println(bestBoard.VisualBoard().String())
+			fmt.Println("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
 
 			close(returnCh)
 			close(nodesCountch)
@@ -82,9 +72,14 @@ func main() {
 		} else if moveNotation == "list" {
 			allLegalMoves := engine.MoveSlice(b.AllLegalMoves())
 			sort.Sort(allLegalMoves)
+			copyBoard := &chess.Board{}
+			*copyBoard = *b
 			for _, move := range allLegalMoves {
-				fmt.Printf("%d -> %s\n", engine.MoveSortingScore(move), move.String())
+				notation := copyBoard.MoveToNotation(move)
+				fmt.Printf("%d -> %s\n", engine.MoveSortingScore(move), notation)
+				copyBoard.MakeLegalMove(move)
 			}
+			fmt.Println("Total moves:", len(allLegalMoves))
 			continue
 		}
 
@@ -93,8 +88,11 @@ func main() {
 			fmt.Println("Invalid move")
 			continue
 		}
-		if !b.MakeMove(move) {
+		b.MakePseudoLegalMove(move)
+		if !b.IsValidPosition() {
 			fmt.Println("Illegal move")
+			b.UndoMove()
+			continue
 		}
 	}
 

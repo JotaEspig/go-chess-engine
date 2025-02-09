@@ -4,19 +4,18 @@ import (
 	"errors"
 	"fmt"
 	"gce/pkg/utils"
-	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/log"
 )
 
-func (b Board) ParseMove(notation string) (*Move, error) {
+func (b Board) ParseMove(notation string) (Move, error) {
 	originalNotation := notation
 	notation = strings.ReplaceAll(notation, "+", "")
 	notation = strings.ReplaceAll(notation, "#", "")
 
 	if notation == "O-O" {
-		move := &Move{IsCastling: true, PieceType: KingType}
+		move := Move{IsCastling: true, PieceType: KingType}
 		if b.Ctx.WhiteTurn {
 			move.OldPiecePos = b.White.King.Board
 		} else {
@@ -25,7 +24,7 @@ func (b Board) ParseMove(notation string) (*Move, error) {
 		move.NewPiecePos = moveRight(move.OldPiecePos, 2)
 		return move, nil
 	} else if notation == "O-O-O" {
-		move := &Move{IsCastling: true, PieceType: KingType}
+		move := Move{IsCastling: true, PieceType: KingType}
 		if b.Ctx.WhiteTurn {
 			move.OldPiecePos = b.White.King.Board
 		} else {
@@ -50,7 +49,7 @@ func (b Board) ParseMove(notation string) (*Move, error) {
 		case "N":
 			newPieceType = KnightType
 		default:
-			return nil, errors.New("Invalid promotion piece type")
+			return Move{}, errors.New("Invalid promotion piece type")
 		}
 
 		notation = parts[0]
@@ -73,7 +72,7 @@ func (b Board) ParseMove(notation string) (*Move, error) {
 		}
 	}
 
-	var piecePossibleMoves []*Move
+	var piecePossibleMoves []Move
 	var pb PartialBoard
 	if b.Ctx.WhiteTurn {
 		pb = b.White
@@ -95,7 +94,7 @@ func (b Board) ParseMove(notation string) (*Move, error) {
 	case KingType:
 		piecePossibleMoves = pb.King.AllPossibleMoves(b)
 	default:
-		return nil, errors.New(fmt.Sprintf("Invalid piece type: %v", pieceType))
+		return Move{}, errors.New(fmt.Sprintf("Invalid piece type: %v", pieceType))
 	}
 
 	// Check if it's a capture
@@ -115,13 +114,13 @@ func (b Board) ParseMove(notation string) (*Move, error) {
 	destinationPos := PositionToUInt64(col, row)
 
 	// Filter out moves that are not the destination position
-	piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m *Move) bool {
+	piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
 		return m.NewPiecePos == destinationPos && m.NewPieceType == newPieceType
 	})
 
-	var move *Move
+	var move Move
 	if len(piecePossibleMoves) == 0 {
-		return nil, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
+		return Move{}, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
 	} else if len(piecePossibleMoves) == 1 {
 		move = piecePossibleMoves[0]
 	} else {
@@ -136,19 +135,19 @@ func (b Board) ParseMove(notation string) (*Move, error) {
 		if source >= "a" && source <= "h" {
 			col := int(source[0] - 'a')
 			// Filter out moves that are not the source column
-			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m *Move) bool {
+			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
 				return Int64toPositions(m.OldPiecePos)[0][0] == col
 			})
 		} else {
 			row := int(source[0] - '1')
 			// Filter out moves that are not the source row
-			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m *Move) bool {
+			piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
 				return Int64toPositions(m.OldPiecePos)[0][1] == row
 			})
 		}
 
 		if len(piecePossibleMoves) == 0 {
-			return nil, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
+			return Move{}, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
 		}
 
 		if len(piecePossibleMoves) > 1 {
@@ -156,20 +155,20 @@ func (b Board) ParseMove(notation string) (*Move, error) {
 			if remaningAmbiguityRemoval >= 'a' && remaningAmbiguityRemoval <= 'h' {
 				col := int(remaningAmbiguityRemoval - 'a')
 				// Filter out moves that are not the source column
-				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m *Move) bool {
+				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
 					return Int64toPositions(m.OldPiecePos)[0][0] == col
 				})
 			} else {
 				row := int(remaningAmbiguityRemoval - '1')
 				// Filter out moves that are not the source row
-				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m *Move) bool {
+				piecePossibleMoves = utils.Filter(piecePossibleMoves, func(m Move) bool {
 					return Int64toPositions(m.OldPiecePos)[0][1] == row
 				})
 			}
 		}
 
 		if len(piecePossibleMoves) != 1 {
-			return nil, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
+			return Move{}, errors.New(fmt.Sprintf("Invalid move: %v", originalNotation))
 		}
 
 		move = piecePossibleMoves[0]
@@ -178,12 +177,16 @@ func (b Board) ParseMove(notation string) (*Move, error) {
 	return move, nil
 }
 
-func (b Board) MoveToNotation(move *Move) string {
+func (b Board) MoveToNotation(move Move) string {
 	if move.IsCastling {
+		castle := "O-O"
 		if move.NewPiecePos > move.OldPiecePos {
-			return "O-O-O"
+			castle = "O-O-O"
 		}
-		return "O-O"
+		if move.IsCheck {
+			castle += "+"
+		}
+		return castle
 	}
 
 	notation := ""
@@ -205,7 +208,7 @@ func (b Board) MoveToNotation(move *Move) string {
 
 	// Check for ambiguity
 	var pb PartialBoard
-	var possiblePieceMoves []*Move
+	var possiblePieceMoves []Move
 	if b.Ctx.WhiteTurn {
 		pb = b.White
 	} else {
@@ -229,14 +232,14 @@ func (b Board) MoveToNotation(move *Move) string {
 	}
 
 	// Filter out moves that are not the destination position
-	possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m *Move) bool {
+	possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
 		return m.NewPiecePos == move.NewPiecePos && m.NewPieceType == move.NewPieceType
 	})
 	length := len(possiblePieceMoves)
 	if length > 1 {
 		// Check for ambiguity
 		// Check for column ambiguity
-		possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m *Move) bool {
+		possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
 			return Int64toPositions(m.OldPiecePos)[0][0] == Int64toPositions(move.OldPiecePos)[0][0]
 		})
 		if length != len(possiblePieceMoves) {
@@ -244,7 +247,7 @@ func (b Board) MoveToNotation(move *Move) string {
 		}
 		if len(possiblePieceMoves) > 1 {
 			// Check for row ambiguity
-			possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m *Move) bool {
+			possiblePieceMoves = utils.Filter(possiblePieceMoves, func(m Move) bool {
 				return Int64toPositions(m.OldPiecePos)[0][1] == Int64toPositions(move.OldPiecePos)[0][1]
 			})
 		}
@@ -267,35 +270,45 @@ func (b Board) MoveToNotation(move *Move) string {
 	}
 	notation += string(rune('1' + destRow))
 
+	if move.IsPromotion {
+		notation := "="
+		switch move.NewPieceType {
+		case QueenType:
+			notation += "Q"
+		case RookType:
+			notation += "R"
+		case BishopType:
+			notation += "B"
+		case KnightType:
+			notation += "N"
+		default:
+			log.Fatalf("Invalid piece type: %v", move.NewPieceType)
+		}
+	}
+	if move.IsCheck {
+		notation += "+"
+	}
+
+	if strings.TrimSpace(notation) == "" {
+		log.Fatalf("Invalid move: %v", move)
+	}
+
 	return notation
 }
 
 func (b Board) getMoveListInNotation() string {
-	// Means last position of the board, so it does not have a move
-	if b.MoveDone == nil {
-		mateSuffix := ""
-		if b.IsMated() {
-			mateSuffix = "#"
+	s := ""
+	for i, move := range b.MovesDone {
+		if i%2 == 0 {
+			s += fmt.Sprintf("%d. ", i/2+1)
 		}
-		// If it is mate on this turn, so we need to add the suffix to the previous move
-		return b.PrevBoard.getMoveListInNotation() + mateSuffix
+		s += b.MoveToNotation(move) + " "
 	}
-	moveNotation := b.MoveToNotation(b.MoveDone)
-	if b.PrevBoard == nil {
-		return "1. " + moveNotation
+	if b.IsMated() {
+		s = strings.TrimSpace(s)
+		s += "#"
 	}
-	moveNumberIfNeeded := ""
-	if b.Ctx.WhiteTurn {
-		moveNumberInt := b.Ctx.MoveNumber
-		moveNumberIfNeeded = strconv.Itoa(int(moveNumberInt)) + ". "
-	}
-
-	checkSuffix := ""
-	if b.IsKingInCheck() {
-		checkSuffix = "+"
-	}
-	// If it is check on this turn, so we need to add the suffix to the previous move
-	return b.PrevBoard.getMoveListInNotation() + checkSuffix + " " + moveNumberIfNeeded + moveNotation + checkSuffix
+	return s
 }
 
 func (b Board) GetMoveListInNotation() string {

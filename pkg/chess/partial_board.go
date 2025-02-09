@@ -23,7 +23,7 @@ func NewPartialBoard() PartialBoard {
 	}
 }
 
-func (pb PartialBoard) AllPossibleMoves(board Board) []*Move {
+func (pb PartialBoard) AllPossibleMoves(board Board) []Move {
 	moves := pb.Pawns.AllPossibleMoves(board)
 	moves = append(moves, pb.Knights.AllPossibleMoves(board)...)
 	moves = append(moves, pb.Bishops.AllPossibleMoves(board)...)
@@ -33,7 +33,46 @@ func (pb PartialBoard) AllPossibleMoves(board Board) []*Move {
 	return moves
 }
 
-func (pb *PartialBoard) MakeMove(m *Move) {
+func (pb PartialBoard) AllCastlingMoves(board Board) []Move {
+	anyCastleAvailable := false
+	var kingSideSpaceMask uint64
+	var QueenSideSpaceMask uint64
+	var kingSideSafeSpot uint64
+	var queenSideSafeSpot uint64
+	if board.Ctx.WhiteTurn {
+		anyCastleAvailable = board.Ctx.WhiteCastlingKingSide || board.Ctx.WhiteCastlingQueenSide
+		kingSideSpaceMask = ^uint64(6)    // 6 is the bits that represents F1 and G1
+		QueenSideSpaceMask = ^uint64(112) // 112 is the bits that represents B1, C1 and D1
+		kingSideSafeSpot = uint64(2)      // G1
+		queenSideSafeSpot = uint64(32)    // C1
+	} else {
+		anyCastleAvailable = board.Ctx.BlackCastlingKingSide || board.Ctx.BlackCastlingQueenSide
+		kingSideSpaceMask = ^uint64(432_345_564_227_567_616)    // 432_345_564_227_567_616 is the bits that represents F8 and G8
+		QueenSideSpaceMask = ^uint64(8_070_450_532_247_928_832) // 8_070_450_532_247_928_832 is the bits that represents B8, C8, D8
+		kingSideSafeSpot = uint64(144_115_188_075_855_872)      // G8
+		queenSideSafeSpot = uint64(2_305_843_009_213_693_952)   // C8
+	}
+
+	if !anyCastleAvailable {
+		return []Move{}
+	}
+
+	moves := make([]Move, 0)
+	allBoardMask := pb.AllBoardMask()
+	// king side is empty, can castle
+	if kingSideSpaceMask&allBoardMask == 0 {
+		move := Move{OldPiecePos: pb.King.Board, NewPiecePos: kingSideSafeSpot, IsCastling: true, PieceType: KingType}
+		moves = append(moves, move)
+	}
+	// queen side is empty, can castle
+	if QueenSideSpaceMask&allBoardMask == 0 {
+		move := Move{OldPiecePos: pb.King.Board, NewPiecePos: queenSideSafeSpot, IsCastling: true, PieceType: KingType}
+		moves = append(moves, move)
+	}
+	return moves
+}
+
+func (pb *PartialBoard) MakeMove(m Move) {
 	var pp *PiecesPosition
 	switch m.PieceType {
 	case PawnType:
@@ -56,7 +95,7 @@ func (pb *PartialBoard) MakeMove(m *Move) {
 	pp.Board |= m.NewPiecePos
 }
 
-func (pb *PartialBoard) MakePromotion(m *Move) {
+func (pb *PartialBoard) MakePromotion(m Move) {
 	var pp, pp2 *PiecesPosition
 	switch m.PieceType {
 	case PawnType:
@@ -83,6 +122,28 @@ func (pb *PartialBoard) MakePromotion(m *Move) {
 
 func (pb PartialBoard) AllBoardMask() uint64 {
 	return pb.Pawns.Board | pb.Knights.Board | pb.Bishops.Board | pb.Rooks.Board | pb.Queens.Board | pb.King.Board
+}
+
+func (pb PartialBoard) GetPieceTypeByPos(pos uint64) PieceType {
+	if pb.Pawns.Board&pos != 0 {
+		return PawnType
+	}
+	if pb.Knights.Board&pos != 0 {
+		return KnightType
+	}
+	if pb.Bishops.Board&pos != 0 {
+		return BishopType
+	}
+	if pb.Rooks.Board&pos != 0 {
+		return RookType
+	}
+	if pb.Queens.Board&pos != 0 {
+		return QueenType
+	}
+	if pb.King.Board&pos != 0 {
+		return KingType
+	}
+	return InvalidType
 }
 
 // MaterialValue returns the total value of all the pieces on the board.

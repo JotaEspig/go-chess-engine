@@ -81,6 +81,16 @@ func main() {
 			}
 			fmt.Println("Total moves:", len(allLegalMoves))
 			continue
+		} else if moveNotation == "perft" {
+			depth := uint(0)
+			fmt.Print("Depth: ")
+			fmt.Scanln(&depth)
+			nodes, nodesPerMove := engine.Perft(b, depth)
+			for _, nodePerMove := range nodesPerMove {
+				fmt.Printf("%s: %d\n", nodePerMove.Move.StockfishString(), nodePerMove.Nodes)
+			}
+			fmt.Println(nodes)
+			continue
 		}
 
 		move, err := b.ParseMove(moveNotation)

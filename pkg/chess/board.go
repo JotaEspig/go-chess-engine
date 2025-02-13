@@ -1,6 +1,8 @@
 package chess
 
-import "gce/pkg/utils"
+import (
+	"gce/pkg/utils"
+)
 
 // Board represents a full board with pieces of both colors on it.
 type Board struct {
@@ -56,6 +58,21 @@ func (b Board) AllLegalMoves() []Move {
 		b.MakePseudoLegalMove(m)
 		isValid := b.IsValidPosition()
 		b.UndoMove()
+
+		if isValid && m.IsCastling {
+			// Check if the mid square is attacked
+			midPoint := m.NewPiecePos
+			if m.NewPiecePos < m.OldPiecePos { // King side
+				midPoint = moveRight(m.OldPiecePos, 1)
+			} else { // Queen side
+				midPoint = moveLeft(m.OldPiecePos, 1)
+			}
+			move := Move{OldPiecePos: m.OldPiecePos, NewPiecePos: midPoint, PieceType: KingType}
+			b.MakePseudoLegalMove(move)
+			isValid = isValid && b.IsValidPosition()
+			b.UndoMove()
+		}
+
 		return isValid
 	})
 	utils.ForEach(moves, func(m *Move) {

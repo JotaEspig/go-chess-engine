@@ -41,23 +41,23 @@ func (pb PartialBoard) AllCastlingMoves(board Board) []Move {
 	var queenSideSafeSpot uint64
 	if board.Ctx.WhiteTurn {
 		anyCastleAvailable = board.Ctx.WhiteCastlingKingSide || board.Ctx.WhiteCastlingQueenSide
-		kingSideSpaceMask = ^uint64(6)    // 6 is the bits that represents F1 and G1
-		QueenSideSpaceMask = ^uint64(112) // 112 is the bits that represents B1, C1 and D1
-		kingSideSafeSpot = uint64(2)      // G1
-		queenSideSafeSpot = uint64(32)    // C1
+		kingSideSpaceMask = uint64(6)    // 6 is the bits that represents F1 and G1
+		QueenSideSpaceMask = uint64(112) // 112 is the bits that represents B1, C1 and D1
+		kingSideSafeSpot = uint64(2)     // G1
+		queenSideSafeSpot = uint64(32)   // C1
 	} else {
 		anyCastleAvailable = board.Ctx.BlackCastlingKingSide || board.Ctx.BlackCastlingQueenSide
-		kingSideSpaceMask = ^uint64(432_345_564_227_567_616)    // 432_345_564_227_567_616 is the bits that represents F8 and G8
-		QueenSideSpaceMask = ^uint64(8_070_450_532_247_928_832) // 8_070_450_532_247_928_832 is the bits that represents B8, C8, D8
-		kingSideSafeSpot = uint64(144_115_188_075_855_872)      // G8
-		queenSideSafeSpot = uint64(2_305_843_009_213_693_952)   // C8
+		kingSideSpaceMask = uint64(432_345_564_227_567_616)    // 432_345_564_227_567_616 is the bits that represents F8 and G8
+		QueenSideSpaceMask = uint64(8_070_450_532_247_928_832) // 8_070_450_532_247_928_832 is the bits that represents B8, C8, D8
+		kingSideSafeSpot = uint64(144_115_188_075_855_872)     // G8
+		queenSideSafeSpot = uint64(2_305_843_009_213_693_952)  // C8
 	}
 
 	if !anyCastleAvailable {
 		return []Move{}
 	}
 
-	moves := make([]Move, 0)
+	moves := make([]Move, 0, 2)
 	allBoardMask := pb.AllBoardMask()
 	// king side is empty, can castle
 	if kingSideSpaceMask&allBoardMask == 0 {

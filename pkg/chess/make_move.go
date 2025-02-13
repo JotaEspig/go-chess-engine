@@ -18,24 +18,58 @@ func (b *Board) MakePseudoLegalMove(m Move) {
 		pb = &b.Black
 	}
 
+	// Update MovesDone and PreviousCtx
+	b.MovesDone = append(b.MovesDone, m)
+	b.PreviousCtx = append(b.PreviousCtx, b.Ctx)
+
 	if m.IsCastling { // Castling verifications
 		isKingSide := m.NewPiecePos < m.OldPiecePos
 		// Move rook, king is moved on normal MakeMove
 		if isKingSide {
 			if b.Ctx.WhiteTurn {
-				b.White.Rooks.Board &= ^uint64(1) // H1
-				b.White.Rooks.Board |= uint64(4)  // F1
+				b.White.Rooks.Board &= ^H1
+				b.White.Rooks.Board |= F1
+				b.Ctx.WhiteCastlingKingSide = false
+				b.Ctx.WhiteCastlingQueenSide = false
 			} else {
-				b.Black.Rooks.Board &= ^uint64(72_057_594_037_927_936) // H8
-				b.Black.Rooks.Board |= uint64(288_230_376_151_711_744) // F8
+				b.Black.Rooks.Board &= ^H8
+				b.Black.Rooks.Board |= F8
+				b.Ctx.BlackCastlingKingSide = false
+				b.Ctx.BlackCastlingQueenSide = false
 			}
 		} else {
 			if b.Ctx.WhiteTurn {
-				b.White.Rooks.Board &= ^uint64(128) // A1
-				b.White.Rooks.Board |= uint64(16)   // D1
+				b.White.Rooks.Board &= ^A1
+				b.White.Rooks.Board |= D1
+				b.Ctx.WhiteCastlingKingSide = false
+				b.Ctx.WhiteCastlingQueenSide = false
 			} else {
-				b.Black.Rooks.Board &= ^uint64(9_223_372_036_854_775_808) // A8
-				b.Black.Rooks.Board |= uint64(1_152_921_504_606_846_976)  // D8
+				b.Black.Rooks.Board &= ^A8
+				b.Black.Rooks.Board |= D8
+				b.Ctx.BlackCastlingKingSide = false
+				b.Ctx.BlackCastlingQueenSide = false
+			}
+		}
+	}
+	// Removes castling rights if the piece is a rook or king
+	if m.PieceType == RookType || m.PieceType == KingType {
+		if b.Ctx.WhiteTurn {
+			if m.OldPiecePos == A1 {
+				b.Ctx.WhiteCastlingQueenSide = false
+			} else if m.OldPiecePos == H1 {
+				b.Ctx.WhiteCastlingKingSide = false
+			} else {
+				b.Ctx.WhiteCastlingKingSide = false
+				b.Ctx.WhiteCastlingQueenSide = false
+			}
+		} else {
+			if m.OldPiecePos == A8 {
+				b.Ctx.BlackCastlingQueenSide = false
+			} else if m.OldPiecePos == H8 {
+				b.Ctx.BlackCastlingKingSide = false
+			} else {
+				b.Ctx.BlackCastlingKingSide = false
+				b.Ctx.BlackCastlingQueenSide = false
 			}
 		}
 	}
@@ -60,7 +94,15 @@ func (b *Board) MakePseudoLegalMove(m Move) {
 
 		switch m.CapturedPieceType {
 		case PawnType:
-			pb.Pawns.Board &= ^m.NewPiecePos
+			enemyPawnPos := m.NewPiecePos
+			if m.IsEnPassant {
+				if b.Ctx.WhiteTurn {
+					enemyPawnPos = moveDown(enemyPawnPos, 1) // Black pawn
+				} else {
+					enemyPawnPos = moveUp(enemyPawnPos, 1) // White pawn
+				}
+			}
+			pb.Pawns.Board &= ^enemyPawnPos
 		case KnightType:
 			pb.Knights.Board &= ^m.NewPiecePos
 		case BishopType:
@@ -86,10 +128,6 @@ func (b *Board) MakePseudoLegalMove(m Move) {
 			enPassantPos = moveDown(m.OldPiecePos, 1)
 		}
 	}
-
-	// Update MovesDone and PreviousCtx
-	b.MovesDone = append(b.MovesDone, m)
-	b.PreviousCtx = append(b.PreviousCtx, b.Ctx)
 
 	// means black completed its turn
 	if !b.Ctx.WhiteTurn {

@@ -13,7 +13,7 @@ func TestPerftInitialBoard(t *testing.T) {
 	expectedNodes := []uint64{20, 400, 8902, 197_281, 4_865_609, 119_060_324}
 	for depth := 1; depth <= 5; depth++ {
 		initialBoard := chess.NewDefaultBoard()
-		nodes := engine.Perft(initialBoard, uint(depth))
+		nodes, _ := engine.Perft(initialBoard, uint(depth))
 		assert.Equal(t, expectedNodes[depth-1], nodes, "Depth %d", depth)
 	}
 }

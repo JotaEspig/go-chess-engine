@@ -151,13 +151,11 @@ func PawnMoves(board Board, pieceBoard uint64) []Move {
 				moves = append(moves, move)
 			}
 		}
-	}
 
-	// Double pawn move
-	// Check if pawn is at 2 row
-	if isInInitialRow(pieceBoard) {
-		// Check if row in front is not blocked
-		if newPieceBoard != 0 {
+		// Double pawn move
+		// Check if pawn is at 2 row
+		if isInInitialRow(pieceBoard) {
+			// Check if row in front is not blocked
 			newPieceBoard = dirFn(newPieceBoard, 1)
 			if newPieceBoard&allColorBoard == 0 {
 				move := Move{OldPiecePos: pieceBoard, NewPiecePos: newPieceBoard, PieceType: PawnType}
